@@ -9,6 +9,9 @@ import android.content.res.TypedArray;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import java.io.File;
+import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -70,6 +73,15 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
         layouts.add(layout_of_string(res, ((NamedLayout)l).name));
       else if (l instanceof CustomLayout)
         layouts.add(((CustomLayout)l).parsed);
+      else if (l instanceof DirectoryLayout)
+      {
+        // For directory layouts, add the first valid layout found
+        List<KeyboardData> dirLayouts = ((DirectoryLayout)l).layouts;
+        if (!dirLayouts.isEmpty())
+          layouts.add(dirLayouts.get(0));
+        else
+          layouts.add(null); // Fallback to system layout if directory is empty
+      }
       else // instanceof SystemLayout
         layouts.add(null);
     }
@@ -117,6 +129,12 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
       else
         return getContext().getString(R.string.pref_layout_e_custom);
     }
+    else if (l instanceof DirectoryLayout)
+    {
+      DirectoryLayout dl = (DirectoryLayout)l;
+      String dirName = new File(dl.path).getName();
+      return "Directory: " + dirName + " (" + dl.layouts.size() + " layouts)";
+    }
     else // instanceof SystemLayout
       return getContext().getString(R.string.pref_layout_e_system);
   }
@@ -139,7 +157,7 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
   @Override
   boolean should_allow_remove_item(Layout value)
   {
-    return (_values.size() > 1 && !(value instanceof CustomLayout));
+    return (_values.size() > 1 && !(value instanceof CustomLayout) && !(value instanceof DirectoryLayout));
   }
 
   @Override
@@ -147,12 +165,24 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
 
   void select_dialog(final SelectionCallback callback)
   {
-    ArrayAdapter layouts = new ArrayAdapter(getContext(), android.R.layout.simple_list_item_1, _layout_display_names);
+    // Add directory option to layout names
+    String[] enhancedLayoutNames = new String[_layout_display_names.length + 1];
+    System.arraycopy(_layout_display_names, 0, enhancedLayoutNames, 0, _layout_display_names.length);
+    enhancedLayoutNames[_layout_display_names.length] = "Directory";
+    
+    ArrayAdapter layouts = new ArrayAdapter(getContext(), android.R.layout.simple_list_item_1, enhancedLayoutNames);
     new AlertDialog.Builder(getContext())
       .setView(View.inflate(getContext(), R.layout.dialog_edit_text, null))
       .setAdapter(layouts, new DialogInterface.OnClickListener(){
         public void onClick(DialogInterface _dialog, int which)
         {
+          if (which == _layout_display_names.length)
+          {
+            // Directory option selected
+            select_directory(callback);
+            return;
+          }
+          
           String name = get_layout_names(getContext().getResources()).get(which);
           switch (name)
           {
@@ -168,6 +198,40 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
           }
         }
       })
+      .show();
+  }
+
+  /** Dialog for specifying a directory path containing XML layouts. */
+  void select_directory(final SelectionCallback callback)
+  {
+    final EditText input = new EditText(getContext());
+    input.setHint("/storage/emulated/0/UnexpectedKeyboard/layouts");
+    
+    new AlertDialog.Builder(getContext())
+      .setTitle("Select Layout Directory")
+      .setMessage("Enter the full path to a directory containing XML layout files:")
+      .setView(input)
+      .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+        @Override
+        public void onClick(DialogInterface dialog, int which) {
+          String path = input.getText().toString().trim();
+          if (!path.isEmpty()) {
+            DirectoryLayout dirLayout = new DirectoryLayout(path);
+            if (dirLayout.layouts.isEmpty()) {
+              // Show warning but still allow selection
+              new AlertDialog.Builder(getContext())
+                .setTitle("Warning")
+                .setMessage("No valid XML layouts found in directory: " + path + "\nAdd layout anyway?")
+                .setPositiveButton("Yes", (d, w) -> callback.select(dirLayout))
+                .setNegativeButton("No", null)
+                .show();
+            } else {
+              callback.select(dirLayout);
+            }
+          }
+        }
+      })
+      .setNegativeButton("Cancel", null)
       .show();
   }
 
@@ -208,6 +272,28 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
   {
     if (prev_layout != null && prev_layout instanceof CustomLayout)
       select_custom(callback, ((CustomLayout)prev_layout).xml);
+    else if (prev_layout != null && prev_layout instanceof DirectoryLayout)
+    {
+      // For directory layouts, show the directory selector with current path pre-filled
+      final EditText input = new EditText(getContext());
+      input.setText(((DirectoryLayout)prev_layout).path);
+      
+      new AlertDialog.Builder(getContext())
+        .setTitle("Edit Layout Directory")
+        .setMessage("Enter the full path to a directory containing XML layout files:")
+        .setView(input)
+        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+          @Override
+          public void onClick(DialogInterface dialog, int which) {
+            String path = input.getText().toString().trim();
+            if (!path.isEmpty()) {
+              callback.select(new DirectoryLayout(path));
+            }
+          }
+        })
+        .setNegativeButton("Cancel", null)
+        .show();
+    }
     else
       select_dialog(callback);
   }
@@ -237,7 +323,7 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
   }
 
   /** A layout selected by the user. The only implementations are
-      [NamedLayout], [SystemLayout] and [CustomLayout]. */
+      [NamedLayout], [SystemLayout], [CustomLayout], and [DirectoryLayout]. */
   public interface Layout {}
 
   public static final class SystemLayout implements Layout
@@ -268,6 +354,60 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
     }
   }
 
+  /** A layout loaded from a directory path containing XML files. */
+  public static final class DirectoryLayout implements Layout
+  {
+    public final String path;
+    /** List of parsed layouts from directory. Might be empty. */
+    public final List<KeyboardData> layouts;
+    
+    public DirectoryLayout(String path_) 
+    { 
+      path = path_; 
+      layouts = loadLayoutsFromDirectory(path_);
+    }
+    
+    private static List<KeyboardData> loadLayoutsFromDirectory(String dirPath)
+    {
+      List<KeyboardData> result = new ArrayList<KeyboardData>();
+      try
+      {
+        File dir = new File(dirPath);
+        if (!dir.exists() || !dir.isDirectory())
+          return result;
+          
+        File[] xmlFiles = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".xml"));
+        if (xmlFiles != null)
+        {
+          for (File xmlFile : xmlFiles)
+          {
+            try
+            {
+              FileInputStream fis = new FileInputStream(xmlFile);
+              byte[] data = new byte[(int) xmlFile.length()];
+              fis.read(data);
+              fis.close();
+              
+              String xmlContent = new String(data, "UTF-8");
+              KeyboardData layout = KeyboardData.load_string_exn(xmlContent);
+              if (layout != null)
+                result.add(layout);
+            }
+            catch (Exception e)
+            {
+              // Skip invalid files
+            }
+          }
+        }
+      }
+      catch (Exception e)
+      {
+        // Return empty list on error
+      }
+      return result;
+    }
+  }
+
   /** Named layouts are serialized to strings and custom layouts to JSON
       objects with a [kind] field. */
   public static class Serializer implements ListGroupPreference.Serializer<Layout>
@@ -285,6 +425,7 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
       switch (obj_.getString("kind"))
       {
         case "custom": return CustomLayout.parse(obj_.getString("xml"));
+        case "directory": return new DirectoryLayout(obj_.getString("path"));
         case "system": default: return new SystemLayout();
       }
     }
@@ -296,6 +437,9 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
       if (v instanceof CustomLayout)
         return new JSONObject().put("kind", "custom")
           .put("xml", ((CustomLayout)v).xml);
+      if (v instanceof DirectoryLayout)
+        return new JSONObject().put("kind", "directory")
+          .put("path", ((DirectoryLayout)v).path);
       return new JSONObject().put("kind", "system");
     }
   }

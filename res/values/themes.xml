@@ -222,4 +222,23 @@
     <item name="emoji_button_bg">#26233a</item>
     <item name="emoji_color">#e0def4</item>
   </style>
+  <style name="Nord" parent="BaseTheme">
+    <item name="android:isLightTheme">false</item>
+    <item name="colorKeyboard">#2e3440</item>
+    <item name="colorKey">#3b4252</item>
+    <item name="colorKeyActivated">#434c5e</item>
+    <item name="keyBorderWidth">0dp</item>
+    <item name="keyBorderWidthActivated">1dp</item>
+    <item name="keyBorderColorLeft">#4c566a</item>
+    <item name="keyBorderColorTop">#4c566a</item>
+    <item name="keyBorderColorRight">#4c566a</item>
+    <item name="keyBorderColorBottom">#4c566a</item>
+    <item name="colorLabel">#eceff4</item>
+    <item name="colorLabelActivated">#88c0d0</item>
+    <item name="colorLabelLocked">#a3be8c</item>
+    <item name="colorSubLabel">#d8dee9</item>
+    <item name="keyBorderRadius">2dp</item>
+    <item name="emoji_button_bg">#3b4252</item>
+    <item name="emoji_color">#eceff4</item>
+  </style>
 </resources>
