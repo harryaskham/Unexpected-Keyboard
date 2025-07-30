@@ -182,6 +182,7 @@ public final class Config
     circle_sensitivity = Integer.valueOf(_prefs.getString("circle_sensitivity", "2"));
     clipboard_history_enabled = _prefs.getBoolean("clipboard_history_enabled", false);
     floating_keyboard = _prefs.getBoolean("floating_keyboard", false);
+    android.util.Log.d("juloo.keyboard2.fork", "Config refresh: floating_keyboard=" + floating_keyboard);
 
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;
