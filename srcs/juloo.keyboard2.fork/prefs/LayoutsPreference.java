@@ -82,12 +82,9 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
         layouts.add(((CustomLayout)l).parsed);
       else if (l instanceof DirectoryLayout)
       {
-        // For directory layouts, add the first valid layout found
-        List<KeyboardData> dirLayouts = ((DirectoryLayout)l).layouts;
-        if (!dirLayouts.isEmpty())
-          layouts.add(dirLayouts.get(0));
-        else
-          layouts.add(null); // Fallback to system layout if directory is empty
+        // Directory layouts are not stored - they are expanded into individual custom layouts
+        // This should not happen in normal operation
+        layouts.add(null);
       }
       else // instanceof SystemLayout
         layouts.add(null);
@@ -164,7 +161,7 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
   @Override
   boolean should_allow_remove_item(Layout value)
   {
-    return (_values.size() > 1 && !(value instanceof CustomLayout) && !(value instanceof DirectoryLayout));
+    return (_values.size() > 1 && !(value instanceof DirectoryLayout));
   }
 
   @Override
@@ -173,9 +170,10 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
   void select_dialog(final SelectionCallback callback)
   {
     // Add directory option to layout names
-    String[] enhancedLayoutNames = new String[_layout_display_names.length + 1];
+    String[] enhancedLayoutNames = new String[_layout_display_names.length + 2];
     System.arraycopy(_layout_display_names, 0, enhancedLayoutNames, 0, _layout_display_names.length);
-    enhancedLayoutNames[_layout_display_names.length] = "Directory";
+    enhancedLayoutNames[_layout_display_names.length] = "Load from Directory";
+    enhancedLayoutNames[_layout_display_names.length + 1] = "Refresh Directory Layouts";
     
     ArrayAdapter layouts = new ArrayAdapter(getContext(), android.R.layout.simple_list_item_1, enhancedLayoutNames);
     new AlertDialog.Builder(getContext())
@@ -185,8 +183,14 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
         {
           if (which == _layout_display_names.length)
           {
-            // Directory option selected
+            // Load from Directory option selected
             select_directory(callback);
+            return;
+          }
+          if (which == _layout_display_names.length + 1)
+          {
+            // Refresh Directory Layouts option selected
+            refreshDirectoryLayouts(callback);
             return;
           }
           
@@ -298,20 +302,19 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
             
             DirectoryLayout dirLayout = new DirectoryLayout(path);
             if (dirLayout.layouts.isEmpty()) {
-              // Show warning but still allow selection
+              // Show warning
               new AlertDialog.Builder(getContext())
-                .setTitle("Warning")
-                .setMessage("No valid XML layouts found in directory: " + path + "\nCheck device logs with 'adb logcat | grep LayoutsPreference' for detailed error information.\nAdd layout anyway?")
-                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                  @Override
-                  public void onClick(DialogInterface dialog, int which) {
-                    callback.select(dirLayout);
-                  }
-                })
-                .setNegativeButton("No", null)
+                .setTitle("No Layouts Found")
+                .setMessage("No valid XML layouts found in directory: " + path + "\nCheck device logs with 'adb logcat | grep LayoutsPreference' for detailed error information.")
+                .setPositiveButton("OK", null)
                 .show();
             } else {
-              callback.select(dirLayout);
+              // Save the directory path for refresh functionality
+              getContext().getSharedPreferences("directory_layouts", 0)
+                  .edit().putString("last_directory", path).apply();
+              
+              // Add all layouts from directory as individual custom layouts
+              addLayoutsFromDirectory(dirLayout, callback);
             }
           }
         }
@@ -351,34 +354,104 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
         });
   }
 
+  /** Refresh directory layouts by re-scanning last used directory. */
+  private void refreshDirectoryLayouts(SelectionCallback callback) {
+    // Get the last used directory path from shared preferences or ask user
+    String lastPath = getContext().getSharedPreferences("directory_layouts", 0)
+        .getString("last_directory", getSuggestedLayoutPath());
+    
+    final EditText input = new EditText(getContext());
+    input.setText(lastPath);
+    
+    new AlertDialog.Builder(getContext())
+      .setTitle("Refresh Directory Layouts")
+      .setMessage("Re-scan directory for layout changes:")
+      .setView(input)
+      .setPositiveButton("Refresh", new DialogInterface.OnClickListener() {
+        @Override
+        public void onClick(DialogInterface dialog, int which) {
+          String path = input.getText().toString().trim();
+          if (!path.isEmpty()) {
+            // Save the path for next time
+            getContext().getSharedPreferences("directory_layouts", 0)
+                .edit().putString("last_directory", path).apply();
+            
+            DirectoryLayout dirLayout = new DirectoryLayout(path);
+            if (!dirLayout.layouts.isEmpty()) {
+              addLayoutsFromDirectory(dirLayout, callback);
+            } else {
+              Toast.makeText(getContext(), "No layouts found in directory", Toast.LENGTH_SHORT).show();
+            }
+          }
+        }
+      })
+      .setNegativeButton("Cancel", null)
+      .show();
+  }
+
+  /** Add all layouts from a directory as individual custom layouts. */
+  private void addLayoutsFromDirectory(DirectoryLayout dirLayout, SelectionCallback callback) {
+    try {
+      File dir = new File(dirLayout.path);
+      File[] xmlFiles = dir.listFiles(new java.io.FilenameFilter() {
+        @Override
+        public boolean accept(File dir, String name) {
+          return name.toLowerCase().endsWith(".xml");
+        }
+      });
+      
+      if (xmlFiles != null) {
+        int addedCount = 0;
+        for (File xmlFile : xmlFiles) {
+          try {
+            FileInputStream fis = new FileInputStream(xmlFile);
+            byte[] data = new byte[(int) xmlFile.length()];
+            int bytesRead = fis.read(data);
+            fis.close();
+            
+            if (bytesRead > 0) {
+              String xmlContent = new String(data, 0, bytesRead, "UTF-8");
+              
+              // Test that the XML is valid
+              KeyboardData testLayout = KeyboardData.load_string_exn(xmlContent);
+              if (testLayout != null) {
+                // Create a custom layout with a descriptive name
+                String layoutName = xmlFile.getName().replaceAll("\\.xml$", "");
+                CustomLayout customLayout = new CustomLayout(xmlContent, testLayout);
+                
+                // Add this layout to the current list
+                List<Layout> currentLayouts = new ArrayList<Layout>(_values);
+                currentLayouts.add(customLayout);
+                set_values(currentLayouts, true);
+                
+                addedCount++;
+                android.util.Log.i("LayoutsPreference", "Added layout: " + layoutName);
+              }
+            }
+          } catch (Exception e) {
+            android.util.Log.w("LayoutsPreference", "Failed to load layout from " + xmlFile.getName() + ": " + e.getMessage());
+          }
+        }
+        
+        Toast.makeText(getContext(), 
+            "Added " + addedCount + " layouts from directory", 
+            Toast.LENGTH_SHORT).show();
+        
+        // Call callback with null to close the dialog
+        callback.select(null);
+      }
+    } catch (Exception e) {
+      android.util.Log.e("LayoutsPreference", "Error adding layouts from directory: " + e.getMessage());
+      Toast.makeText(getContext(), "Error adding layouts: " + e.getMessage(), Toast.LENGTH_LONG).show();
+    }
+  }
+
   /** Called when modifying a layout. Custom layouts behave differently. */
   @Override
   void select(final SelectionCallback callback, Layout prev_layout)
   {
     if (prev_layout != null && prev_layout instanceof CustomLayout)
       select_custom(callback, ((CustomLayout)prev_layout).xml);
-    else if (prev_layout != null && prev_layout instanceof DirectoryLayout)
-    {
-      // For directory layouts, show the directory selector with current path pre-filled
-      final EditText input = new EditText(getContext());
-      input.setText(((DirectoryLayout)prev_layout).path);
-      
-      new AlertDialog.Builder(getContext())
-        .setTitle("Edit Layout Directory")
-        .setMessage("Enter the full path to a directory containing XML layout files:")
-        .setView(input)
-        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-          @Override
-          public void onClick(DialogInterface dialog, int which) {
-            String path = input.getText().toString().trim();
-            if (!path.isEmpty()) {
-              callback.select(new DirectoryLayout(path));
-            }
-          }
-        })
-        .setNegativeButton("Cancel", null)
-        .show();
-    }
     else
       select_dialog(callback);
   }

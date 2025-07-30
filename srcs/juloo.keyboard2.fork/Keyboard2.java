@@ -589,15 +589,19 @@ public class Keyboard2 extends InputMethodService
   }
   
   private void createFloatingKeyboard() {
+    Logs.debug("createFloatingKeyboard called");
     if (_floatingKeyboardActive || _windowManager == null) {
+      Logs.debug("Floating keyboard already active or windowManager null");
       return;
     }
     
     if (!hasSystemAlertWindowPermission()) {
+      Logs.debug("No system alert window permission");
       requestSystemAlertWindowPermission();
       return;
     }
     
+    Logs.debug("Creating floating keyboard window");
     try {
       _floatingKeyboardView = inflate_view(R.layout.keyboard);
       ((Keyboard2View)_floatingKeyboardView).reset();
@@ -608,7 +612,10 @@ public class Keyboard2 extends InputMethodService
           WindowManager.LayoutParams.WRAP_CONTENT,
           VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY 
                                 : WindowManager.LayoutParams.TYPE_PHONE,
-          WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+          WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+          WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
+          WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
+          WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
           PixelFormat.TRANSLUCENT);
       
       _floatingLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
@@ -616,8 +623,12 @@ public class Keyboard2 extends InputMethodService
       _floatingLayoutParams.y = 200;
       _floatingLayoutParams.setTitle("Unexpected Keyboard Fork");
       
+      // Add drag handle functionality
+      _floatingKeyboardView.setOnTouchListener(new SmartFloatingTouchListener());
+      
       _windowManager.addView(_floatingKeyboardView, _floatingLayoutParams);
       _floatingKeyboardActive = true;
+      Logs.debug("Floating keyboard window created successfully");
       
       // Hide the regular IME input view
       setInputView(new View(this));
@@ -625,7 +636,10 @@ public class Keyboard2 extends InputMethodService
     } catch (Exception e) {
       Logs.exn("Failed to create floating keyboard", e);
       Toast.makeText(this, "Failed to create floating keyboard: " + e.getMessage(), 
-          Toast.LENGTH_SHORT).show();
+          Toast.LENGTH_LONG).show();
+      // Fallback to regular keyboard
+      _config.floating_keyboard = false;
+      setInputView(_keyboardView);
     }
   }
   
@@ -641,4 +655,66 @@ public class Keyboard2 extends InputMethodService
     }
   }
   
+  private class SmartFloatingTouchListener implements View.OnTouchListener {
+    private int initialX, initialY;
+    private float initialTouchX, initialTouchY;
+    private boolean isDragging = false;
+    private boolean dragStarted = false;
+    private final int DRAG_HANDLE_HEIGHT = 40; // Top 40px acts as drag handle
+    
+    @Override
+    public boolean onTouch(View v, MotionEvent event) {
+      float touchY = event.getY();
+      
+      switch (event.getAction()) {
+        case MotionEvent.ACTION_DOWN:
+          initialX = _floatingLayoutParams.x;
+          initialY = _floatingLayoutParams.y;
+          initialTouchX = event.getRawX();
+          initialTouchY = event.getRawY();
+          isDragging = false;
+          dragStarted = false;
+          
+          // Only potentially start drag if touching the top drag handle area
+          if (touchY <= DRAG_HANDLE_HEIGHT) {
+            dragStarted = true;
+            return false; // Don't consume yet, wait for move
+          }
+          return false; // Let keyboard handle all other touches
+          
+        case MotionEvent.ACTION_MOVE:
+          if (!dragStarted) {
+            return false; // Not in drag handle area, let keyboard handle
+          }
+          
+          float deltaX = event.getRawX() - initialTouchX;
+          float deltaY = event.getRawY() - initialTouchY;
+          
+          // Start dragging after any movement in drag handle area
+          if (!isDragging && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
+            isDragging = true;
+          }
+          
+          if (isDragging) {
+            _floatingLayoutParams.x = initialX + (int) deltaX;
+            _floatingLayoutParams.y = initialY + (int) deltaY;
+            if (_windowManager != null && _floatingKeyboardView != null) {
+              _windowManager.updateViewLayout(_floatingKeyboardView, _floatingLayoutParams);
+            }
+            return true; // Consume drag events
+          }
+          return false;
+          
+        case MotionEvent.ACTION_UP:
+        case MotionEvent.ACTION_CANCEL:
+          if (isDragging) {
+            isDragging = false;
+            dragStarted = false;
+            return true; // Consume final drag event
+          }
+          return false; // Let keyboard handle normal taps
+      }
+      return false;
+    }
+  }
 }

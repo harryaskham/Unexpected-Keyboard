@@ -2,13 +2,17 @@ package juloo.keyboard2.fork;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.drawable.Animatable;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build.VERSION;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.Settings;
@@ -20,6 +24,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,6 +48,55 @@ public class LauncherActivity extends Activity implements Handler.Callback
       _tryhere_area.addOnUnhandledKeyEventListener(
           this.new Tryhere_OnUnhandledKeyEventListener());
     _handler = new Handler(getMainLooper(), this);
+    
+    // Check and request storage permissions for directory layout loading
+    checkStoragePermissions();
+  }
+  
+  private void checkStoragePermissions() {
+    if (VERSION.SDK_INT >= 30) { // Android 11+
+      if (!Environment.isExternalStorageManager()) {
+        showStoragePermissionDialog();
+      }
+    } else if (VERSION.SDK_INT >= 23) { // Android 6+
+      if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) 
+          != PackageManager.PERMISSION_GRANTED) {
+        requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, 100);
+      }
+    }
+  }
+  
+  private void showStoragePermissionDialog() {
+    new AlertDialog.Builder(this)
+      .setTitle("Storage Permission")
+      .setMessage("This app's directory layout loading feature requires storage access permission. Would you like to enable it now?")
+      .setPositiveButton("Enable", new DialogInterface.OnClickListener() {
+        @Override
+        public void onClick(DialogInterface dialog, int which) {
+          try {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+          } catch (Exception e) {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+            startActivity(intent);
+          }
+        }
+      })
+      .setNegativeButton("Skip", null)
+      .show();
+  }
+  
+  @Override
+  public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    if (requestCode == 100) {
+      if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        Toast.makeText(this, "Storage permission granted", Toast.LENGTH_SHORT).show();
+      } else {
+        Toast.makeText(this, "Storage permission denied - directory layout loading will not work", Toast.LENGTH_LONG).show();
+      }
+    }
   }
 
   @Override
