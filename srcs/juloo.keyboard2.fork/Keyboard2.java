@@ -612,8 +612,8 @@ public class Keyboard2 extends InputMethodService
           WindowManager.LayoutParams.WRAP_CONTENT,
           VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY 
                                 : WindowManager.LayoutParams.TYPE_PHONE,
-          WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
           WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
+          WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH |
           WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
           WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
           PixelFormat.TRANSLUCENT);
@@ -630,8 +630,10 @@ public class Keyboard2 extends InputMethodService
       _floatingKeyboardActive = true;
       Logs.debug("Floating keyboard window created successfully");
       
-      // Hide the regular IME input view
-      setInputView(new View(this));
+      // Keep a minimal input view to maintain IME connection
+      View minimalView = new View(this);
+      minimalView.setLayoutParams(new android.view.ViewGroup.LayoutParams(1, 1));
+      setInputView(minimalView);
       
     } catch (Exception e) {
       Logs.exn("Failed to create floating keyboard", e);
@@ -660,7 +662,7 @@ public class Keyboard2 extends InputMethodService
     private float initialTouchX, initialTouchY;
     private boolean isDragging = false;
     private boolean dragStarted = false;
-    private final int DRAG_HANDLE_HEIGHT = 40; // Top 40px acts as drag handle
+    private final int DRAG_HANDLE_HEIGHT = 30; // Top 30px acts as drag handle
     
     @Override
     public boolean onTouch(View v, MotionEvent event) {
@@ -675,23 +677,23 @@ public class Keyboard2 extends InputMethodService
           isDragging = false;
           dragStarted = false;
           
-          // Only potentially start drag if touching the top drag handle area
+          // Only potentially start drag if touching the very top edge
           if (touchY <= DRAG_HANDLE_HEIGHT) {
             dragStarted = true;
-            return false; // Don't consume yet, wait for move
+            // Don't consume - let the system handle focus but prepare for potential drag
           }
-          return false; // Let keyboard handle all other touches
+          return false; // Always let the view handle the initial touch
           
         case MotionEvent.ACTION_MOVE:
           if (!dragStarted) {
-            return false; // Not in drag handle area, let keyboard handle
+            return false; // Not in drag handle area
           }
           
           float deltaX = event.getRawX() - initialTouchX;
           float deltaY = event.getRawY() - initialTouchY;
           
-          // Start dragging after any movement in drag handle area
-          if (!isDragging && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
+          // Start dragging with a small threshold
+          if (!isDragging && (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10)) {
             isDragging = true;
           }
           
@@ -701,18 +703,16 @@ public class Keyboard2 extends InputMethodService
             if (_windowManager != null && _floatingKeyboardView != null) {
               _windowManager.updateViewLayout(_floatingKeyboardView, _floatingLayoutParams);
             }
-            return true; // Consume drag events
+            return true; // Consume only when actively dragging
           }
           return false;
           
         case MotionEvent.ACTION_UP:
         case MotionEvent.ACTION_CANCEL:
-          if (isDragging) {
-            isDragging = false;
-            dragStarted = false;
-            return true; // Consume final drag event
-          }
-          return false; // Let keyboard handle normal taps
+          boolean wasDragging = isDragging;
+          isDragging = false;
+          dragStarted = false;
+          return wasDragging; // Only consume if we were dragging
       }
       return false;
     }
