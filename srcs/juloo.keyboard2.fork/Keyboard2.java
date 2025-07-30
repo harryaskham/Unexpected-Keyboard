@@ -603,22 +603,18 @@ public class Keyboard2 extends InputMethodService
       ((Keyboard2View)_floatingKeyboardView).reset();
       ((Keyboard2View)_floatingKeyboardView).setKeyboard(current_layout());
       
-      // Make the floating keyboard draggable
-      _floatingKeyboardView.setOnTouchListener(new FloatingKeyboardTouchListener());
-      
       _floatingLayoutParams = new WindowManager.LayoutParams(
           WindowManager.LayoutParams.WRAP_CONTENT,
           WindowManager.LayoutParams.WRAP_CONTENT,
           VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY 
                                 : WindowManager.LayoutParams.TYPE_PHONE,
-          WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-          WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
-          WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+          WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
           PixelFormat.TRANSLUCENT);
       
       _floatingLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
       _floatingLayoutParams.x = 100;
       _floatingLayoutParams.y = 200;
+      _floatingLayoutParams.setTitle("Unexpected Keyboard Fork");
       
       _windowManager.addView(_floatingKeyboardView, _floatingLayoutParams);
       _floatingKeyboardActive = true;
@@ -645,50 +641,4 @@ public class Keyboard2 extends InputMethodService
     }
   }
   
-  private class FloatingKeyboardTouchListener implements View.OnTouchListener {
-    private int initialX, initialY;
-    private float initialTouchX, initialTouchY;
-    private boolean isDragging = false;
-    private final int DRAG_THRESHOLD = 10; // pixels
-    
-    @Override
-    public boolean onTouch(View v, MotionEvent event) {
-      switch (event.getAction()) {
-        case MotionEvent.ACTION_DOWN:
-          initialX = _floatingLayoutParams.x;
-          initialY = _floatingLayoutParams.y;
-          initialTouchX = event.getRawX();
-          initialTouchY = event.getRawY();
-          isDragging = false;
-          return false; // Allow other touch events to be processed
-          
-        case MotionEvent.ACTION_MOVE:
-          float deltaX = event.getRawX() - initialTouchX;
-          float deltaY = event.getRawY() - initialTouchY;
-          
-          if (!isDragging && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
-            isDragging = true;
-          }
-          
-          if (isDragging) {
-            _floatingLayoutParams.x = initialX + (int) deltaX;
-            _floatingLayoutParams.y = initialY + (int) deltaY;
-            if (_windowManager != null && _floatingKeyboardView != null) {
-              _windowManager.updateViewLayout(_floatingKeyboardView, _floatingLayoutParams);
-            }
-            return true; // Consume the event when dragging
-          }
-          return false;
-          
-        case MotionEvent.ACTION_UP:
-        case MotionEvent.ACTION_CANCEL:
-          if (isDragging) {
-            isDragging = false;
-            return true; // Consume the final event if we were dragging
-          }
-          return false;
-      }
-      return false;
-    }
-  }
 }

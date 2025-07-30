@@ -1,13 +1,13 @@
-# Unexpected Keyboard [<img src="https://hosted.weblate.org/widget/unexpected-keyboard/svg-badge.svg" alt="État de la traduction" />](https://hosted.weblate.org/engage/unexpected-keyboard/)
+# Unexpected Keyboard Fork
 
-[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
-     alt="Get it on F-Droid"
-     height="80">](https://f-droid.org/packages/juloo.keyboard2.fork/)
-[<img src="https://play.google.com/intl/en_us/badges/images/generic/en-play-badge.png"
-     alt="Get it on Google Play"
-     height="80">](https://play.google.com/store/apps/details?id=juloo.keyboard2.fork)
+Enhanced fork of the Unexpected Keyboard with additional features:
 
-Lightweight and privacy-conscious virtual keyboard for Android.
+- **Directory-based layout loading**: Load XML keyboard layouts from any directory on your device storage
+- **Floating keyboard mode**: Detach keyboard from bottom of screen as a draggable floating window  
+- **Nord colorscheme**: Arctic-inspired dark theme with blue accents
+
+Original Unexpected Keyboard features:
+- Lightweight and privacy-conscious virtual keyboard for Android
 
 https://github.com/Julow/Unexpected-Keyboard/assets/2310568/28f8f6fe-ac13-46f3-8c5e-d62443e16d0d
 

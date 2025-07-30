@@ -3,13 +3,20 @@ package juloo.keyboard2.fork.prefs;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
+import android.provider.Settings;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.Toast;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
@@ -201,11 +208,60 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
       .show();
   }
 
+  /** Check if we have storage permissions. */
+  private boolean hasStoragePermission() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      // Android 11+ - check for MANAGE_EXTERNAL_STORAGE
+      return Environment.isExternalStorageManager();
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      // Android 6+ - check for READ_EXTERNAL_STORAGE
+      return getContext().checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) 
+             == PackageManager.PERMISSION_GRANTED;
+    }
+    return true; // Pre-Android 6
+  }
+  
+  /** Request storage permissions. */
+  private void requestStoragePermission() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      // Android 11+ - request MANAGE_EXTERNAL_STORAGE
+      try {
+        Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+        intent.setData(Uri.parse("package:" + getContext().getPackageName()));
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(intent);
+        Toast.makeText(getContext(), 
+            "Please enable 'All files access' permission to load layouts from directories", 
+            Toast.LENGTH_LONG).show();
+      } catch (Exception e) {
+        // Fallback to general settings
+        Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(intent);
+      }
+    } else {
+      Toast.makeText(getContext(), 
+          "Storage permission required. Please enable in app settings.", 
+          Toast.LENGTH_LONG).show();
+    }
+  }
+
+  /** Get a suggested directory path that should be accessible. */
+  private String getSuggestedLayoutPath() {
+    // Try app-specific external files directory first (doesn't require permissions)
+    File externalFilesDir = getContext().getExternalFilesDir("layouts");
+    if (externalFilesDir != null) {
+      return externalFilesDir.getAbsolutePath();
+    }
+    // Fallback to common accessible locations
+    return "/storage/emulated/0/Download/layouts";
+  }
+  
   /** Dialog for specifying a directory path containing XML layouts. */
   void select_directory(final SelectionCallback callback)
   {
     final EditText input = new EditText(getContext());
-    input.setHint("/storage/emulated/0/UnexpectedKeyboard/layouts");
+    input.setHint(getSuggestedLayoutPath());
     
     new AlertDialog.Builder(getContext())
       .setTitle("Select Layout Directory")
@@ -216,12 +272,36 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
         public void onClick(DialogInterface dialog, int which) {
           String path = input.getText().toString().trim();
           if (!path.isEmpty()) {
+            // Check if accessing paths outside app directory
+            String appDataPath = getContext().getExternalFilesDir(null) != null ? 
+                getContext().getExternalFilesDir(null).getAbsolutePath() : "";
+            
+            if (!path.startsWith(appDataPath) && !hasStoragePermission()) {
+              new AlertDialog.Builder(getContext())
+                .setTitle("Storage Permission Required")
+                .setMessage("Accessing files outside app directory requires storage permission. Use app directory (" + getSuggestedLayoutPath() + ") or grant permission?")
+                .setPositiveButton("Grant Permission", new DialogInterface.OnClickListener() {
+                  @Override
+                  public void onClick(DialogInterface dialog, int which) {
+                    requestStoragePermission();
+                  }
+                })
+                .setNegativeButton("Use App Directory", new DialogInterface.OnClickListener() {
+                  @Override
+                  public void onClick(DialogInterface dialog, int which) {
+                    input.setText(getSuggestedLayoutPath());
+                  }
+                })
+                .show();
+              return;
+            }
+            
             DirectoryLayout dirLayout = new DirectoryLayout(path);
             if (dirLayout.layouts.isEmpty()) {
               // Show warning but still allow selection
               new AlertDialog.Builder(getContext())
                 .setTitle("Warning")
-                .setMessage("No valid XML layouts found in directory: " + path + "\nAdd layout anyway?")
+                .setMessage("No valid XML layouts found in directory: " + path + "\nCheck device logs with 'adb logcat | grep LayoutsPreference' for detailed error information.\nAdd layout anyway?")
                 .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                   @Override
                   public void onClick(DialogInterface dialog, int which) {
@@ -378,8 +458,18 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
       try
       {
         File dir = new File(dirPath);
-        if (!dir.exists() || !dir.isDirectory())
+        if (!dir.exists()) {
+          android.util.Log.w("LayoutsPreference", "Directory does not exist: " + dirPath);
           return result;
+        }
+        if (!dir.isDirectory()) {
+          android.util.Log.w("LayoutsPreference", "Path is not a directory: " + dirPath);
+          return result;
+        }
+        if (!dir.canRead()) {
+          android.util.Log.w("LayoutsPreference", "Cannot read directory: " + dirPath);
+          return result;
+        }
           
         File[] xmlFiles = dir.listFiles(new java.io.FilenameFilter() {
           @Override
@@ -387,33 +477,49 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
             return name.toLowerCase().endsWith(".xml");
           }
         });
-        if (xmlFiles != null)
+        
+        if (xmlFiles == null) {
+          android.util.Log.w("LayoutsPreference", "Failed to list files in directory: " + dirPath);
+          return result;
+        }
+        
+        android.util.Log.i("LayoutsPreference", "Found " + xmlFiles.length + " XML files in " + dirPath);
+        
+        for (File xmlFile : xmlFiles)
         {
-          for (File xmlFile : xmlFiles)
+          try
           {
-            try
-            {
-              FileInputStream fis = new FileInputStream(xmlFile);
-              byte[] data = new byte[(int) xmlFile.length()];
-              fis.read(data);
-              fis.close();
-              
-              String xmlContent = new String(data, "UTF-8");
+            if (!xmlFile.canRead()) {
+              android.util.Log.w("LayoutsPreference", "Cannot read file: " + xmlFile.getName());
+              continue;
+            }
+            
+            FileInputStream fis = new FileInputStream(xmlFile);
+            byte[] data = new byte[(int) xmlFile.length()];
+            int bytesRead = fis.read(data);
+            fis.close();
+            
+            if (bytesRead > 0) {
+              String xmlContent = new String(data, 0, bytesRead, "UTF-8");
               KeyboardData layout = KeyboardData.load_string_exn(xmlContent);
-              if (layout != null)
+              if (layout != null) {
                 result.add(layout);
+                android.util.Log.i("LayoutsPreference", "Successfully loaded layout from: " + xmlFile.getName());
+              }
             }
-            catch (Exception e)
-            {
-              // Skip invalid files
-            }
+          }
+          catch (Exception e)
+          {
+            android.util.Log.w("LayoutsPreference", "Failed to load layout from " + xmlFile.getName() + ": " + e.getMessage());
           }
         }
       }
       catch (Exception e)
       {
-        // Return empty list on error
+        android.util.Log.e("LayoutsPreference", "Error loading layouts from directory " + dirPath + ": " + e.getMessage());
       }
+      
+      android.util.Log.i("LayoutsPreference", "Loaded " + result.size() + " layouts from " + dirPath);
       return result;
     }
   }
