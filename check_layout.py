@@ -116,7 +116,7 @@ def check_layout(layout):
 # Fill 'known_keys', which is used for some checks
 def parse_known_keys():
     global known_keys
-    with open("srcs/juloo.keyboard2/KeyValue.java", "r") as f:
+    with open("srcs/juloo.keyboard2.fork/KeyValue.java", "r") as f:
         known_keys = set(
                 ( m.group(1) for m in re.finditer('case "([^"]+)":', f.read()) )
                 )
