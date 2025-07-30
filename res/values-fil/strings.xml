@@ -49,7 +49,7 @@
     <string name="pref_switch_input_immediate_summary">Ugali ng key sa pagpapalit ng keyboard</string>
     <string name="pref_vibrate_custom">Custom na vibration</string>
     <string name="pref_vibrate_duration_title">Lakas ng vibration</string>
-    <!-- <string name="pref_number_entry_title">Layout when typing numbers, dates and phone numbers</string> -->
+    <!-- <string name="pref_number_entry_title">Layout when typing numbers, dates, and phone numbers</string> -->
     <!-- <string name="pref_number_entry_layout_pin">PIN Entry</string> -->
     <!-- <string name="pref_number_entry_layout_number">Number pane</string> -->
     <!-- <string name="pref_number_entry_layout_normal">Use the main layout</string> -->
@@ -73,6 +73,7 @@
     <string name="pref_theme_e_monetlight">Monet (maliwanag)</string>
     <string name="pref_theme_e_monetdark">Monet (madilim)</string>
     <string name="pref_theme_e_rosepine">Rosé Pine</string>
+    <!-- <string name="pref_theme_e_nord">Nord</string> -->
     <string name="pref_swipe_dist_e_very_short">Maikling-maikli</string>
     <string name="pref_swipe_dist_e_short">Maikli</string>
     <string name="pref_swipe_dist_e_default">Normal</string>

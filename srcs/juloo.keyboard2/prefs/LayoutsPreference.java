@@ -222,7 +222,12 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
               new AlertDialog.Builder(getContext())
                 .setTitle("Warning")
                 .setMessage("No valid XML layouts found in directory: " + path + "\nAdd layout anyway?")
-                .setPositiveButton("Yes", (d, w) -> callback.select(dirLayout))
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                  @Override
+                  public void onClick(DialogInterface dialog, int which) {
+                    callback.select(dirLayout);
+                  }
+                })
                 .setNegativeButton("No", null)
                 .show();
             } else {
@@ -376,7 +381,12 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
         if (!dir.exists() || !dir.isDirectory())
           return result;
           
-        File[] xmlFiles = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".xml"));
+        File[] xmlFiles = dir.listFiles(new java.io.FilenameFilter() {
+          @Override
+          public boolean accept(File dir, String name) {
+            return name.toLowerCase().endsWith(".xml");
+          }
+        });
         if (xmlFiles != null)
         {
           for (File xmlFile : xmlFiles)
