@@ -16,6 +16,7 @@ import android.util.Log;
 import android.util.LogPrinter;
 import android.view.*;
 import android.view.inputmethod.EditorInfo;
+import android.widget.LinearLayout;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodManager;
@@ -55,6 +56,7 @@ public class Keyboard2 extends InputMethodService
   private View _floatingKeyboardView;
   private WindowManager.LayoutParams _floatingLayoutParams;
   private WindowManager.LayoutParams _originalWindowParams;
+  private WindowManager.LayoutParams _currentFloatingParams;
 
   /** Layout currently visible before it has been modified. */
   KeyboardData current_layout_unmodified()
@@ -280,6 +282,7 @@ public class Keyboard2 extends InputMethodService
       } else {
         Logs.debug("Switching from floating keyboard mode");
         removeFloatingKeyboard();
+        // Ensure docked mode is properly set up
         setInputView(_keyboardView);
       }
     }
@@ -291,6 +294,7 @@ public class Keyboard2 extends InputMethodService
       _emojiPane = null;
       _clipboard_pane = null;
       if (!_config.floating_keyboard) {
+        // Ensure we're in docked mode
         setInputView(_keyboardView);
       } else {
         // Recreate floating keyboard with new theme
@@ -368,6 +372,23 @@ public class Keyboard2 extends InputMethodService
       ((ViewGroup)parent).removeView(v);
     super.setInputView(v);
     updateSoftInputWindowLayoutParams();
+    
+    // If we're in floating mode, reapply floating parameters after system changes
+    if (_floatingKeyboardActive && _currentFloatingParams != null) {
+      android.util.Log.d("juloo.keyboard2.fork", "setInputView called during floating mode - reapplying floating params");
+      v.post(new Runnable() {
+        @Override
+        public void run() {
+          try {
+            Window imeWindow = getWindow().getWindow();
+            imeWindow.setAttributes(_currentFloatingParams);
+            android.util.Log.d("juloo.keyboard2.fork", "Floating parameters reapplied after setInputView");
+          } catch (Exception e) {
+            android.util.Log.e("juloo.keyboard2.fork", "Failed to reapply floating params: " + e.getMessage());
+          }
+        }
+      });
+    }
   }
 
 
@@ -674,8 +695,15 @@ public class Keyboard2 extends InputMethodService
       // Apply the new window parameters
       imeWindow.setAttributes(newParams);
       
+      // Store current floating params for reapplication
+      _currentFloatingParams = new WindowManager.LayoutParams();
+      _currentFloatingParams.copyFrom(newParams);
+      
       _floatingKeyboardActive = true;
       Logs.debug("IME window modified for floating mode");
+      
+      // Add drag handle to the keyboard view
+      addDragHandle();
       
     } catch (Exception e) {
       Logs.exn("Failed to create floating keyboard", e);
@@ -704,7 +732,109 @@ public class Keyboard2 extends InputMethodService
       }
       
       _floatingKeyboardActive = false;
+      _currentFloatingParams = null;
+      
+      // Remove drag handle
+      removeDragHandle();
+      
       Logs.debug("Floating keyboard mode disabled, IME window restored");
+    }
+  }
+
+  private LinearLayout _floatingContainer;
+  private View _dragHandle;
+
+  private void addDragHandle() {
+    if (_keyboardView != null && _floatingKeyboardActive) {
+      // Create a container that holds both drag handle and keyboard
+      _floatingContainer = new LinearLayout(this);
+      _floatingContainer.setOrientation(LinearLayout.VERTICAL);
+      
+      // Create drag handle
+      _dragHandle = new View(this);
+      _dragHandle.setBackgroundColor(0xCC666666); // More visible gray
+      int handleHeight = (int) (16 * getResources().getDisplayMetrics().density); // 16dp for better visibility
+      LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(
+          LinearLayout.LayoutParams.MATCH_PARENT, handleHeight);
+      
+      // Add drag handle to container
+      _floatingContainer.addView(_dragHandle, handleParams);
+      
+      // Remove keyboard from current parent and add to our container
+      ViewGroup currentParent = (ViewGroup) _keyboardView.getParent();
+      if (currentParent != null) {
+        currentParent.removeView(_keyboardView);
+      }
+      
+      LinearLayout.LayoutParams keyboardParams = new LinearLayout.LayoutParams(
+          LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+      _floatingContainer.addView(_keyboardView, keyboardParams);
+      
+      // Set the container as the input view
+      setInputView(_floatingContainer);
+      
+      // Set touch listener on drag handle
+      _dragHandle.setOnTouchListener(new DragTouchListener());
+      android.util.Log.d("juloo.keyboard2.fork", "Drag handle and container created");
+    }
+  }
+
+  private void removeDragHandle() {
+    if (_floatingContainer != null && _keyboardView != null) {
+      // Remove keyboard from container
+      _floatingContainer.removeView(_keyboardView);
+      
+      // Set keyboard directly as input view
+      setInputView(_keyboardView);
+      
+      _floatingContainer = null;
+      _dragHandle = null;
+      android.util.Log.d("juloo.keyboard2.fork", "Drag handle and container removed");
+    }
+  }
+
+  private class DragTouchListener implements View.OnTouchListener {
+    private float initialX, initialY;
+    private float initialTouchX, initialTouchY;
+
+    @Override
+    public boolean onTouch(View v, MotionEvent event) {
+      if (!_floatingKeyboardActive || _currentFloatingParams == null) {
+        return false;
+      }
+
+      switch (event.getAction()) {
+        case MotionEvent.ACTION_DOWN:
+          initialX = _currentFloatingParams.x;
+          initialY = _currentFloatingParams.y;
+          initialTouchX = event.getRawX();
+          initialTouchY = event.getRawY();
+          android.util.Log.d("juloo.keyboard2.fork", "Drag handle touched");
+          return true; // Consume the event
+
+        case MotionEvent.ACTION_MOVE:
+          float deltaX = event.getRawX() - initialTouchX;
+          float deltaY = event.getRawY() - initialTouchY;
+          
+          _currentFloatingParams.x = (int) (initialX + deltaX);
+          _currentFloatingParams.y = (int) (initialY + deltaY);
+          
+          try {
+            Window imeWindow = getWindow().getWindow();
+            imeWindow.setAttributes(_currentFloatingParams);
+          } catch (Exception e) {
+            android.util.Log.e("juloo.keyboard2.fork", "Failed to update window position: " + e.getMessage());
+          }
+          return true;
+
+        case MotionEvent.ACTION_UP:
+        case MotionEvent.ACTION_CANCEL:
+          android.util.Log.d("juloo.keyboard2.fork", "Finished dragging keyboard to: " + 
+              _currentFloatingParams.x + "," + _currentFloatingParams.y);
+          return true;
+      }
+      
+      return false;
     }
   }
   
