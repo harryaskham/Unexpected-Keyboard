@@ -638,48 +638,44 @@ public class Keyboard2 extends InputMethodService
   
   private void createFloatingKeyboard() {
     Logs.debug("createFloatingKeyboard called");
-    if (_floatingKeyboardActive || _windowManager == null) {
-      Logs.debug("Floating keyboard already active or windowManager null");
+    if (_floatingKeyboardActive) {
+      Logs.debug("Floating keyboard already active");
       return;
     }
     
-    if (!hasSystemAlertWindowPermission()) {
-      Logs.debug("No system alert window permission");
-      requestSystemAlertWindowPermission();
-      return;
-    }
-    
-    Logs.debug("Creating floating keyboard using simple overlay approach");
+    Logs.debug("Creating floating keyboard by modifying IME window gravity and position");
     try {
-      // Create a new keyboard view for floating display
-      _floatingKeyboardView = inflate_view(R.layout.keyboard);
-      Keyboard2View floatingView = (Keyboard2View)_floatingKeyboardView;
-      floatingView.reset();
-      floatingView.setKeyboard(current_layout());
+      // Store original window attributes for restoration
+      Window imeWindow = getWindow().getWindow();
+      WindowManager.LayoutParams originalParams = imeWindow.getAttributes();
+      _originalWindowParams = new WindowManager.LayoutParams();
+      _originalWindowParams.copyFrom(originalParams);
       
-      _floatingLayoutParams = new WindowManager.LayoutParams(
-          WindowManager.LayoutParams.WRAP_CONTENT,
-          WindowManager.LayoutParams.WRAP_CONTENT,
-          VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY 
-                                : WindowManager.LayoutParams.TYPE_PHONE,
-          WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
-          WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-          PixelFormat.TRANSLUCENT);
+      android.util.Log.d("juloo.keyboard2.fork", "Original IME window gravity: " + originalParams.gravity);
+      android.util.Log.d("juloo.keyboard2.fork", "Original IME window x,y: " + originalParams.x + "," + originalParams.y);
       
-      _floatingLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
-      _floatingLayoutParams.x = 100;
-      _floatingLayoutParams.y = 200;
-      _floatingLayoutParams.setTitle("Unexpected Keyboard Fork");
+      // Modify window parameters to make it float
+      WindowManager.LayoutParams newParams = new WindowManager.LayoutParams();
+      newParams.copyFrom(originalParams);
       
-      _windowManager.addView(_floatingKeyboardView, _floatingLayoutParams);
+      // Change positioning to make it float
+      newParams.gravity = Gravity.TOP | Gravity.LEFT;
+      newParams.x = 100;
+      newParams.y = 300;
+      newParams.width = WindowManager.LayoutParams.WRAP_CONTENT;
+      newParams.height = WindowManager.LayoutParams.WRAP_CONTENT;
+      
+      // Keep essential IME flags but add floating behavior
+      newParams.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
+      
+      android.util.Log.d("juloo.keyboard2.fork", "New IME window gravity: " + newParams.gravity);
+      android.util.Log.d("juloo.keyboard2.fork", "New IME window x,y: " + newParams.x + "," + newParams.y);
+      
+      // Apply the new window parameters
+      imeWindow.setAttributes(newParams);
+      
       _floatingKeyboardActive = true;
-      Logs.debug("Floating keyboard overlay created");
-      
-      // Keep original keyboard visible but move it off-screen
-      // This ensures the InputMethodService stays active
-      _keyboardView.setVisibility(View.VISIBLE);
-      _keyboardView.setAlpha(0.01f);  // Nearly transparent
-      _keyboardView.setTranslationY(-2000);  // Move off-screen upwards
+      Logs.debug("IME window modified for floating mode");
       
     } catch (Exception e) {
       Logs.exn("Failed to create floating keyboard", e);
@@ -687,27 +683,28 @@ public class Keyboard2 extends InputMethodService
           Toast.LENGTH_LONG).show();
       // Fallback to regular keyboard
       _config.floating_keyboard = false;
-      setInputView(_keyboardView);
     }
   }
   
   private void removeFloatingKeyboard() {
-    if (_floatingKeyboardActive && _windowManager != null && _floatingKeyboardView != null) {
+    if (_floatingKeyboardActive) {
       try {
-        _windowManager.removeView(_floatingKeyboardView);
+        if (_originalWindowParams != null) {
+          // Restore original IME window parameters
+          Window imeWindow = getWindow().getWindow();
+          android.util.Log.d("juloo.keyboard2.fork", "Restoring original IME window parameters");
+          android.util.Log.d("juloo.keyboard2.fork", "Restoring gravity: " + _originalWindowParams.gravity);
+          android.util.Log.d("juloo.keyboard2.fork", "Restoring x,y: " + _originalWindowParams.x + "," + _originalWindowParams.y);
+          
+          imeWindow.setAttributes(_originalWindowParams);
+          _originalWindowParams = null;
+        }
       } catch (Exception e) {
-        // View might already be removed
+        Logs.exn("Failed to restore original window parameters", e);
       }
-      _floatingKeyboardActive = false;
-      _floatingKeyboardView = null;
       
-      // Restore regular keyboard visibility and position
-      if (_keyboardView != null) {
-        _keyboardView.setVisibility(View.VISIBLE);
-        _keyboardView.setAlpha(1.0f);  // Restore full opacity
-        _keyboardView.setTranslationY(0);  // Restore on-screen position
-        setInputView(_keyboardView);
-      }
+      _floatingKeyboardActive = false;
+      Logs.debug("Floating keyboard mode disabled, IME window restored");
     }
   }
   
