@@ -28,6 +28,8 @@ public final class KeyEventHandler
   /** Whether to force sending arrow keys to move the cursor when
       [setSelection] could be used instead. */
   boolean _move_cursor_force_fallback = false;
+  /** Whether the target app has disabled direct writing (e.g. Samsung apps). */
+  boolean _disable_direct_writing = false;
 
   public KeyEventHandler(IReceiver recv)
   {
@@ -42,6 +44,7 @@ public final class KeyEventHandler
   {
     _autocap.started(info, _recv.getCurrentInputConnection());
     _move_cursor_force_fallback = should_move_cursor_force_fallback(info);
+    _disable_direct_writing = should_disable_direct_writing(info);
   }
 
   /** Selection has been updated. */
@@ -55,6 +58,7 @@ public final class KeyEventHandler
   @Override
   public void key_down(KeyValue key, boolean isSwipe)
   {
+    android.util.Log.d("juloo.keyboard2.fork", "KeyEventHandler.key_down: " + key + ", swipe: " + isSwipe);
     if (key == null)
       return;
     // Stop auto capitalisation when pressing some keys
@@ -86,6 +90,7 @@ public final class KeyEventHandler
   @Override
   public void key_up(KeyValue key, Pointers.Modifiers mods)
   {
+    android.util.Log.d("juloo.keyboard2.fork", "KeyEventHandler.key_up: " + key + ", kind: " + (key != null ? key.getKind() : "null"));
     if (key == null)
       return;
     Pointers.Modifiers old_mods = _mods;
@@ -208,10 +213,36 @@ public final class KeyEventHandler
 
   void send_text(CharSequence text)
   {
+    android.util.Log.d("juloo.keyboard2.fork", "KeyEventHandler.send_text: '" + text + "'");
     InputConnection conn = _recv.getCurrentInputConnection();
+    android.util.Log.d("juloo.keyboard2.fork", "InputConnection: " + conn);
+    if (conn != null) {
+      android.util.Log.d("juloo.keyboard2.fork", "InputConnection class: " + conn.getClass().getSimpleName());
+      android.util.Log.d("juloo.keyboard2.fork", "InputConnection hashCode: " + Integer.toHexString(conn.hashCode()));
+      android.util.Log.d("juloo.keyboard2.fork", "InputConnection toString: " + conn.toString());
+      
+      // Try to get more info about the connection target
+      try {
+        ExtractedText extractedText = get_cursor_pos(conn);
+        if (extractedText != null) {
+          android.util.Log.d("juloo.keyboard2.fork", "Target text length: " + (extractedText.text != null ? extractedText.text.length() : "null"));
+          android.util.Log.d("juloo.keyboard2.fork", "Cursor position: " + extractedText.selectionStart + "-" + extractedText.selectionEnd);
+        }
+      } catch (Exception e) {
+        android.util.Log.d("juloo.keyboard2.fork", "Error getting extracted text: " + e.getMessage());
+      }
+    }
     if (conn == null)
       return;
-    conn.commitText(text, 1);
+    
+    // Check if we should use key events instead of commitText due to disableDirectWriting
+    if (_disable_direct_writing) {
+      android.util.Log.d("juloo.keyboard2.fork", "Using key events due to disableDirectWriting");
+      send_text_as_key_events(text);
+    } else {
+      conn.commitText(text, 1);
+      android.util.Log.d("juloo.keyboard2.fork", "Text committed to InputConnection");
+    }
     _autocap.typed(text);
   }
 
@@ -477,6 +508,127 @@ public final class KeyEventHandler
       return true;
     // Godot editor: Doesn't handle setSelection() but returns true.
     return info.packageName.startsWith("org.godotengine.editor");
+  }
+
+  /** Check if the target app has disabled direct writing through privateImeOptions. */
+  boolean should_disable_direct_writing(EditorInfo info)
+  {
+    if (info.privateImeOptions != null) {
+      boolean disabled = info.privateImeOptions.contains("disableDirectWriting=true");
+      android.util.Log.d("juloo.keyboard2.fork", "privateImeOptions: " + info.privateImeOptions + ", disableDirectWriting: " + disabled);
+      return disabled;
+    }
+    return false;
+  }
+
+  /** Send text character by character using key events when commitText() is disabled. */
+  void send_text_as_key_events(CharSequence text)
+  {
+    for (int i = 0; i < text.length(); i++) {
+      char c = text.charAt(i);
+      // Try to find a keycode for common characters
+      int keyCode = getKeyCodeForChar(c);
+      if (keyCode != 0) {
+        // Check if we need shift modifier
+        boolean needsShift = characterNeedsShift(c);
+        if (needsShift) {
+          send_key_down_up(keyCode, KeyEvent.META_SHIFT_ON | KeyEvent.META_SHIFT_LEFT_ON);
+        } else {
+          send_key_down_up(keyCode);
+        }
+      } else {
+        // For characters that can't be mapped, try to use Unicode key events
+        // This is a fallback that may not work on all devices/apps
+        android.util.Log.d("juloo.keyboard2.fork", "Cannot map character '" + c + "' to keycode, trying Unicode");
+        send_unicode_key_event(c);
+      }
+    }
+  }
+
+  /** Get keycode for common characters. */
+  int getKeyCodeForChar(char c)
+  {
+    // Map common characters to keycodes
+    if (c >= 'a' && c <= 'z') {
+      return KeyEvent.KEYCODE_A + (c - 'a');
+    } else if (c >= 'A' && c <= 'Z') {
+      return KeyEvent.KEYCODE_A + (c - 'A');
+    } else if (c >= '0' && c <= '9') {
+      return KeyEvent.KEYCODE_0 + (c - '0');
+    } else {
+      // Map other common characters
+      switch (c) {
+        case ' ': return KeyEvent.KEYCODE_SPACE;
+        case '.': return KeyEvent.KEYCODE_PERIOD;
+        case ',': return KeyEvent.KEYCODE_COMMA;
+        case '?': return KeyEvent.KEYCODE_SLASH;
+        case '!': return KeyEvent.KEYCODE_1;
+        case '@': return KeyEvent.KEYCODE_2;
+        case '#': return KeyEvent.KEYCODE_3;
+        case '$': return KeyEvent.KEYCODE_4;
+        case '%': return KeyEvent.KEYCODE_5;
+        case '^': return KeyEvent.KEYCODE_6;
+        case '&': return KeyEvent.KEYCODE_7;
+        case '*': return KeyEvent.KEYCODE_8;
+        case '(': return KeyEvent.KEYCODE_9;
+        case ')': return KeyEvent.KEYCODE_0;
+        case '-': return KeyEvent.KEYCODE_MINUS;
+        case '_': return KeyEvent.KEYCODE_MINUS;
+        case '=': return KeyEvent.KEYCODE_EQUALS;
+        case '+': return KeyEvent.KEYCODE_EQUALS;
+        case '[': return KeyEvent.KEYCODE_LEFT_BRACKET;
+        case ']': return KeyEvent.KEYCODE_RIGHT_BRACKET;
+        case '\\': return KeyEvent.KEYCODE_BACKSLASH;
+        case ';': return KeyEvent.KEYCODE_SEMICOLON;
+        case ':': return KeyEvent.KEYCODE_SEMICOLON;
+        case '\'': return KeyEvent.KEYCODE_APOSTROPHE;
+        case '"': return KeyEvent.KEYCODE_APOSTROPHE;
+        case '/': return KeyEvent.KEYCODE_SLASH;
+        case '\n': return KeyEvent.KEYCODE_ENTER;
+        default: return 0; // No mapping
+      }
+    }
+  }
+
+  /** Check if a character requires the shift modifier. */
+  boolean characterNeedsShift(char c)
+  {
+    // Uppercase letters need shift
+    if (c >= 'A' && c <= 'Z') return true;
+    
+    // Special characters that require shift
+    switch (c) {
+      case '!': case '@': case '#': case '$': case '%':
+      case '^': case '&': case '*': case '(': case ')':
+      case '_': case '+': case '{': case '}': case '|':
+      case ':': case '"': case '<': case '>': case '?':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /** Send a Unicode character as a key event. */
+  void send_unicode_key_event(char c)
+  {
+    // This is a more complex approach - we send the Unicode value as a key event
+    // Most apps should handle this, but it's less reliable than commitText()
+    KeyEvent downEvent = new KeyEvent(1, 1, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_UNKNOWN, 0, 
+        _meta_state, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 
+        KeyEvent.FLAG_SOFT_KEYBOARD | KeyEvent.FLAG_KEEP_TOUCH_MODE);
+    KeyEvent upEvent = new KeyEvent(1, 1, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_UNKNOWN, 0, 
+        _meta_state, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 
+        KeyEvent.FLAG_SOFT_KEYBOARD | KeyEvent.FLAG_KEEP_TOUCH_MODE);
+    
+    // Set the Unicode character
+    downEvent = KeyEvent.changeTimeRepeat(downEvent, downEvent.getEventTime(), 0);
+    upEvent = KeyEvent.changeTimeRepeat(upEvent, upEvent.getEventTime(), 0);
+    
+    InputConnection conn = _recv.getCurrentInputConnection();
+    if (conn != null) {
+      conn.sendKeyEvent(downEvent);
+      conn.sendKeyEvent(upEvent);
+    }
   }
 
   public static interface IReceiver

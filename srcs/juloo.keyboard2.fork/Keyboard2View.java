@@ -158,6 +158,7 @@ public class Keyboard2View extends View
 
   public void onPointerDown(KeyValue k, boolean isSwipe)
   {
+    android.util.Log.d("juloo.keyboard2.fork", "Keyboard2View.onPointerDown: " + k + ", handler: " + _config.handler);
     updateFlags();
     _config.handler.key_down(k, isSwipe);
     invalidate();
@@ -340,7 +341,9 @@ public class Keyboard2View extends View
   protected void onDraw(Canvas canvas)
   {
     // Set keyboard background opacity
-    getBackground().setAlpha(_config.keyboardOpacity);
+    if (getBackground() != null) {
+      getBackground().setAlpha(_config.keyboardOpacity);
+    }
     float y = _tc.margin_top;
     for (KeyboardData.Row row : _keyboard.rows)
     {

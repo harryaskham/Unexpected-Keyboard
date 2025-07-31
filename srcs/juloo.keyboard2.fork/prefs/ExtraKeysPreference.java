@@ -124,6 +124,7 @@ public class ExtraKeysPreference extends PreferenceCategory
     "combining_alef_below",
     "combining_kavyka",
     "combining_palatalization",
+    "toggle_floating",
   };
 
   /** Whether an extra key is enabled by default. */
@@ -196,6 +197,7 @@ public class ExtraKeysPreference extends PreferenceCategory
       case "switch_greekmath": id = R.string.key_descr_switch_greekmath; break;
       case "undo": id = R.string.key_descr_undo; break;
       case "voice_typing": id = R.string.key_descr_voice_typing; break;
+      case "toggle_floating": id = R.string.key_descr_toggle_floating; break;
       case "ª": id = R.string.key_descr_ª; break;
       case "º": id = R.string.key_descr_º; break;
       case "switch_clipboard": id = R.string.key_descr_clipboard; break;

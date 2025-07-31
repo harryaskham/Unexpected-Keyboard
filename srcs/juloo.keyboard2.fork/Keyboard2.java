@@ -54,6 +54,7 @@ public class Keyboard2 extends InputMethodService
   private boolean _floatingKeyboardActive = false;
   private View _floatingKeyboardView;
   private WindowManager.LayoutParams _floatingLayoutParams;
+  private WindowManager.LayoutParams _originalWindowParams;
 
   /** Layout currently visible before it has been modified. */
   KeyboardData current_layout_unmodified()
@@ -326,14 +327,29 @@ public class Keyboard2 extends InputMethodService
     _keyboardView.setKeyboard(current_layout());
     _keyeventhandler.started(info);
     
+    // Debug InputConnection at start
+    InputConnection initialConn = getCurrentInputConnection();
+    android.util.Log.d("juloo.keyboard2.fork", "onStartInputView InputConnection: " + initialConn);
+    if (initialConn != null) {
+      android.util.Log.d("juloo.keyboard2.fork", "onStartInputView Connection hashCode: " + Integer.toHexString(initialConn.hashCode()));
+    }
+    android.util.Log.d("juloo.keyboard2.fork", "Package: " + (info.packageName != null ? info.packageName : "null"));
+    
     // Handle floating keyboard mode
     Logs.debug("onStartInputView: floating_keyboard=" + _config.floating_keyboard);
     if (_config.floating_keyboard) {
       Logs.debug("Creating floating keyboard in onStartInputView");
       createFloatingKeyboard();
       if (_floatingKeyboardActive) {
-        Logs.debug("Setting keyboard layout on active floating keyboard");
-        ((Keyboard2View)_floatingKeyboardView).setKeyboard(current_layout());
+        Logs.debug("Floating keyboard is active");
+        
+        // Debug InputConnection after floating keyboard creation
+        InputConnection postFloatingConn = getCurrentInputConnection();
+        android.util.Log.d("juloo.keyboard2.fork", "Post-floating InputConnection: " + postFloatingConn);
+        if (postFloatingConn != null) {
+          android.util.Log.d("juloo.keyboard2.fork", "Post-floating Connection hashCode: " + Integer.toHexString(postFloatingConn.hashCode()));
+        }
+        android.util.Log.d("juloo.keyboard2.fork", "InputConnection changed: " + (initialConn != postFloatingConn));
       }
     } else {
       Logs.debug("Using regular keyboard mode");
@@ -538,6 +554,10 @@ public class Keyboard2 extends InputMethodService
           VoiceImeSwitcher.choose_voice_ime(Keyboard2.this, get_imm(),
               Config.globalPrefs());
           break;
+
+        case TOGGLE_FLOATING:
+          toggle_floating_mode();
+          break;
       }
     }
 
@@ -558,7 +578,14 @@ public class Keyboard2 extends InputMethodService
 
     public InputConnection getCurrentInputConnection()
     {
-      return Keyboard2.this.getCurrentInputConnection();
+      InputConnection conn = Keyboard2.this.getCurrentInputConnection();
+      android.util.Log.d("juloo.keyboard2.fork", "Receiver.getCurrentInputConnection() called");
+      android.util.Log.d("juloo.keyboard2.fork", "  Floating mode: " + _floatingKeyboardActive);
+      android.util.Log.d("juloo.keyboard2.fork", "  Returned connection: " + conn);
+      if (conn != null) {
+        android.util.Log.d("juloo.keyboard2.fork", "  Connection hashCode: " + Integer.toHexString(conn.hashCode()));
+      }
+      return conn;
     }
 
     public Handler getHandler()
@@ -570,6 +597,20 @@ public class Keyboard2 extends InputMethodService
   private IBinder getConnectionToken()
   {
     return getWindow().getWindow().getAttributes().token;
+  }
+
+  private void toggle_floating_mode()
+  {
+    boolean newFloatingState = !_config.floating_keyboard;
+    android.util.Log.d("juloo.keyboard2.fork", "Toggling floating mode: " + _config.floating_keyboard + " -> " + newFloatingState);
+    
+    // Update the preference
+    SharedPreferences.Editor editor = Config.globalPrefs().edit();
+    editor.putBoolean("floating_keyboard", newFloatingState);
+    editor.apply();
+    
+    // The preference change will trigger onSharedPreferenceChanged which calls refresh_config
+    // and handles the UI transition automatically
   }
 
   private View inflate_view(int layout)
@@ -608,17 +649,13 @@ public class Keyboard2 extends InputMethodService
       return;
     }
     
-    Logs.debug("Creating floating keyboard window");
+    Logs.debug("Creating floating keyboard using simple overlay approach");
     try {
+      // Create a new keyboard view for floating display
       _floatingKeyboardView = inflate_view(R.layout.keyboard);
       Keyboard2View floatingView = (Keyboard2View)_floatingKeyboardView;
       floatingView.reset();
       floatingView.setKeyboard(current_layout());
-      
-      // Debug: Check if floating keyboard has proper config
-      Logs.debug("Main keyboard config handler: " + (_config != null ? _config.handler : "null"));
-      Logs.debug("Global config: " + Config.globalConfig());
-      Logs.debug("Global config handler: " + (Config.globalConfig() != null ? Config.globalConfig().handler : "null"));
       
       _floatingLayoutParams = new WindowManager.LayoutParams(
           WindowManager.LayoutParams.WRAP_CONTENT,
@@ -634,18 +671,15 @@ public class Keyboard2 extends InputMethodService
       _floatingLayoutParams.y = 200;
       _floatingLayoutParams.setTitle("Unexpected Keyboard Fork");
       
-      // Make window draggable by long press
-      _floatingLayoutParams.flags |= WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED;
-      
-      // No custom touch listener - let system handle everything
-      
       _windowManager.addView(_floatingKeyboardView, _floatingLayoutParams);
       _floatingKeyboardActive = true;
-      Logs.debug("Floating keyboard window created successfully");
+      Logs.debug("Floating keyboard overlay created");
       
-      // Keep the regular keyboard as input view but make it invisible
-      setInputView(_keyboardView);
-      _keyboardView.setVisibility(View.GONE);
+      // Keep original keyboard visible but move it off-screen
+      // This ensures the InputMethodService stays active
+      _keyboardView.setVisibility(View.VISIBLE);
+      _keyboardView.setAlpha(0.01f);  // Nearly transparent
+      _keyboardView.setTranslationY(-2000);  // Move off-screen upwards
       
     } catch (Exception e) {
       Logs.exn("Failed to create floating keyboard", e);
@@ -667,9 +701,12 @@ public class Keyboard2 extends InputMethodService
       _floatingKeyboardActive = false;
       _floatingKeyboardView = null;
       
-      // Restore regular keyboard visibility
+      // Restore regular keyboard visibility and position
       if (_keyboardView != null) {
         _keyboardView.setVisibility(View.VISIBLE);
+        _keyboardView.setAlpha(1.0f);  // Restore full opacity
+        _keyboardView.setTranslationY(0);  // Restore on-screen position
+        setInputView(_keyboardView);
       }
     }
   }

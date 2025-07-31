@@ -23,6 +23,7 @@ public final class KeyValue implements Comparable<KeyValue>
     CAPS_LOCK,
     SWITCH_VOICE_TYPING,
     SWITCH_VOICE_TYPING_CHOOSER,
+    TOGGLE_FLOATING,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -622,6 +623,7 @@ public final class KeyValue implements Comparable<KeyValue>
       case "capslock": return eventKey(0xE012, Event.CAPS_LOCK, 0);
       case "voice_typing": return eventKey(0xE015, Event.SWITCH_VOICE_TYPING, FLAG_SMALLER_FONT);
       case "voice_typing_chooser": return eventKey(0xE015, Event.SWITCH_VOICE_TYPING_CHOOSER, FLAG_SMALLER_FONT);
+      case "toggle_floating": return eventKey("Float", Event.TOGGLE_FLOATING, FLAG_SMALLER_FONT);
 
       /* Key events */
       case "esc": return keyeventKey("Esc", KeyEvent.KEYCODE_ESCAPE, FLAG_SMALLER_FONT);
