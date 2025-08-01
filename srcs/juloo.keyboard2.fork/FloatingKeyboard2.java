@@ -436,6 +436,30 @@ public class FloatingKeyboard2 extends InputMethodService
     
     showDebugToast("Width updated to " + widthPercent + "%");
   }
+
+  private void updateFloatingKeyboardHeight(int heightPercent) {
+    SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(this);
+    SharedPreferences.Editor editor = prefs.edit();
+    
+    // Update the appropriate floating keyboard height setting based on orientation
+    boolean landscape = _config.orientation_landscape;
+    boolean unfolded = _config.foldable_unfolded;
+    
+    String prefKey;
+    if (landscape) {
+      prefKey = unfolded ? "floating_keyboard_height_landscape_unfolded" : "floating_keyboard_height_landscape";
+    } else {
+      prefKey = unfolded ? "floating_keyboard_height_unfolded" : "floating_keyboard_height";
+    }
+    
+    editor.putInt(prefKey, heightPercent);
+    editor.apply();
+    
+    // Update the runtime config
+    _config.floatingKeyboardHeightPercent = heightPercent;
+    
+    showDebugToast("Height updated to " + heightPercent + "%");
+  }
   
   private void refreshFloatingKeyboard() {
     if (_floatingKeyboardView != null && _floatingKeyboardActive) {
@@ -791,6 +815,7 @@ public class FloatingKeyboard2 extends InputMethodService
     private boolean isResizing = false;
     private float resizeStartX, resizeStartY;
     private int initialWidth, initialHeight;
+    private int initialWidthPercent, initialHeightPercent;
 
     public ResizableFloatingContainer(Context context) {
       super(context);
@@ -871,9 +896,11 @@ public class FloatingKeyboard2 extends InputMethodService
             resizeStartY = event.getRawY();
             initialWidth = ResizableFloatingContainer.this.getWidth();
             initialHeight = ResizableFloatingContainer.this.getHeight();
+            initialWidthPercent = _config.floatingKeyboardWidthPercent;
+            initialHeightPercent = _config.floatingKeyboardHeightPercent;
             
-            android.util.Log.d("FloatingKeyboard", "Resize start at: " + resizeStartX + ", " + resizeStartY + " Container size: " + initialWidth + "x" + initialHeight);
-            showDebugToast("Resize started - scale: " + String.format("%.1f", currentScale) + "x");
+            android.util.Log.d("FloatingKeyboard", "Resize start at: " + resizeStartX + ", " + resizeStartY + " Container size: " + initialWidth + "x" + initialHeight + " Initial: " + initialWidthPercent + "%x" + initialHeightPercent + "%");
+            showDebugToast("Resize started - " + initialWidthPercent + "%x" + initialHeightPercent + "%");
             return true;
 
           case MotionEvent.ACTION_MOVE:
@@ -881,22 +908,35 @@ public class FloatingKeyboard2 extends InputMethodService
               float deltaX = event.getRawX() - resizeStartX;
               float deltaY = event.getRawY() - resizeStartY;
               
-              // Use X movement for width scaling (drag right = smaller, left = bigger)
-              float scaleFactor = 1.0f - (deltaX / 600.0f); // Invert and adjust sensitivity
+              // Calculate width percentage based on horizontal movement from initial values
+              // Drag right = bigger (positive deltaX increases width)
+              // Drag left = smaller (negative deltaX decreases width)
+              float widthChange = deltaX / 600.0f; // Adjust sensitivity (600px = 50% change)
+              float newWidthScale = (initialWidthPercent / 100.0f) + widthChange;
+              newWidthScale = Math.max(0.5f, Math.min(1.0f, newWidthScale)); // Clamp 50%-100%
+              int newWidthPercent = (int)(newWidthScale * 100);
               
-              // Clamp scale between 0.5x and 1.0x as requested
-              currentScale = Math.max(0.5f, Math.min(1.0f, scaleFactor));
+              // Calculate height percentage based on vertical movement from initial values
+              // Drag up = bigger (negative deltaY increases height)
+              // Drag down = smaller (positive deltaY decreases height)
+              float heightChange = -deltaY / 400.0f; // Invert and adjust sensitivity (400px = full range)
               
-              // Convert scale to width percentage (50% to 100%)
-              int newWidthPercent = (int)(currentScale * 100);
+              // Get the max height for current orientation
+              int maxHeight = _config.orientation_landscape ? 50 : 50; // Same max as settings
+              int minHeight = 10;
               
-              // Update floating keyboard width in config
+              float newHeightScale = (initialHeightPercent / 100.0f) + heightChange;
+              newHeightScale = Math.max(minHeight / 100.0f, Math.min(maxHeight / 100.0f, newHeightScale));
+              int newHeightPercent = (int)(newHeightScale * 100);
+              
+              // Update both dimensions in config
               updateFloatingKeyboardWidth(newWidthPercent);
+              updateFloatingKeyboardHeight(newHeightPercent);
               
               // Force keyboard redraw with new dimensions
               refreshFloatingKeyboard();
               
-              android.util.Log.d("FloatingKeyboard", "Scale: " + currentScale + " (delta: " + deltaX + ") - ScaleX: " + ResizableFloatingContainer.this.getScaleX() + " ScaleY: " + ResizableFloatingContainer.this.getScaleY());
+              android.util.Log.d("FloatingKeyboard", "Resize - Width: " + newWidthPercent + "% Height: " + newHeightPercent + "% (deltaX: " + deltaX + " deltaY: " + deltaY + ")");
               
               return true;
             }
