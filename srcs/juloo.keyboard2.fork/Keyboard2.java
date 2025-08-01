@@ -52,11 +52,6 @@ public class Keyboard2 extends InputMethodService
 
   private FoldStateTracker _foldStateTracker;
   
-  // Floating keyboard support
-  private WindowManager _windowManager;
-  private boolean _floatingKeyboardActive = false;
-  private View _floatingKeyboardView;
-  private WindowManager.LayoutParams _floatingLayoutParams;
 
   /** Layout currently visible before it has been modified. */
   KeyboardData current_layout_unmodified()
@@ -87,9 +82,6 @@ public class Keyboard2 extends InputMethodService
     _config.set_current_layout(l);
     _currentSpecialLayout = null;
     _keyboardView.setKeyboard(current_layout());
-    if (_floatingKeyboardActive && _floatingKeyboardView != null) {
-      ((Keyboard2View)_floatingKeyboardView).setKeyboard(current_layout());
-    }
   }
 
   void incrTextLayout(int delta)
@@ -102,9 +94,6 @@ public class Keyboard2 extends InputMethodService
   {
     _currentSpecialLayout = l;
     _keyboardView.setKeyboard(l);
-    if (_floatingKeyboardActive && _floatingKeyboardView != null) {
-      ((Keyboard2View)_floatingKeyboardView).setKeyboard(l);
-    }
   }
 
   KeyboardData loadLayout(int layout_id)
@@ -141,17 +130,11 @@ public class Keyboard2 extends InputMethodService
     Logs.set_debug_logs(getResources().getBoolean(R.bool.debug_logs));
     ClipboardHistoryService.on_startup(this, _keyeventhandler);
     _foldStateTracker.setChangedCallback(() -> { refresh_config(); });
-    
-    // Initialize floating keyboard components
-    _windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
   }
 
   @Override
   public void onDestroy() {
     super.onDestroy();
-    
-    // Clean up floating keyboard
-    removeFloatingKeyboard();
     _foldStateTracker.close();
   }
 
@@ -269,23 +252,8 @@ public class Keyboard2 extends InputMethodService
   private void refresh_config()
   {
     int prev_theme = _config.theme;
-    boolean prev_floating = _config.floating_keyboard;
     _config.refresh(getResources(), _foldStateTracker.isUnfolded());
     refreshSubtypeImm();
-    
-    // Handle floating keyboard mode changes
-    Logs.debug("Floating keyboard mode check: prev=" + prev_floating + ", current=" + _config.floating_keyboard);
-    if (prev_floating != _config.floating_keyboard) {
-      if (_config.floating_keyboard) {
-        Logs.debug("Switching to floating keyboard mode");
-        createFloatingKeyboard();
-      } else {
-        Logs.debug("Switching from floating keyboard mode");
-        removeFloatingKeyboard();
-        // Ensure docked mode is properly set up
-        setInputView(_keyboardView);
-      }
-    }
     
     // Refreshing the theme config requires re-creating the views
     if (prev_theme != _config.theme)
@@ -293,14 +261,7 @@ public class Keyboard2 extends InputMethodService
       _keyboardView = (Keyboard2View)inflate_view(R.layout.keyboard);
       _emojiPane = null;
       _clipboard_pane = null;
-      if (!_config.floating_keyboard) {
-        // Ensure we're in docked mode
-        setInputView(_keyboardView);
-      } else {
-        // Recreate floating keyboard with new theme
-        removeFloatingKeyboard();
-        createFloatingKeyboard();
-      }
+      setInputView(_keyboardView);
     }
     _keyboardView.reset();
   }
@@ -329,40 +290,8 @@ public class Keyboard2 extends InputMethodService
     refresh_action_label(info);
     _currentSpecialLayout = refresh_special_layout(info);
     _keyboardView.setKeyboard(current_layout());
-    if (_floatingKeyboardActive && _floatingKeyboardView != null) {
-      ((Keyboard2View)_floatingKeyboardView).setKeyboard(current_layout());
-    }
     _keyeventhandler.started(info);
-    
-    // Debug InputConnection at start
-    InputConnection initialConn = getCurrentInputConnection();
-    android.util.Log.d("juloo.keyboard2.fork", "onStartInputView InputConnection: " + initialConn);
-    if (initialConn != null) {
-      android.util.Log.d("juloo.keyboard2.fork", "onStartInputView Connection hashCode: " + Integer.toHexString(initialConn.hashCode()));
-    }
-    android.util.Log.d("juloo.keyboard2.fork", "Package: " + (info.packageName != null ? info.packageName : "null"));
-    
-    // Handle floating keyboard mode
-    Logs.debug("onStartInputView: floating_keyboard=" + _config.floating_keyboard);
-    if (_config.floating_keyboard) {
-      Logs.debug("Creating floating keyboard in onStartInputView");
-      createFloatingKeyboard();
-      if (_floatingKeyboardActive) {
-        Logs.debug("Floating keyboard is active");
-        
-        // Debug InputConnection after floating keyboard creation
-        InputConnection postFloatingConn = getCurrentInputConnection();
-        android.util.Log.d("juloo.keyboard2.fork", "Post-floating InputConnection: " + postFloatingConn);
-        if (postFloatingConn != null) {
-          android.util.Log.d("juloo.keyboard2.fork", "Post-floating Connection hashCode: " + Integer.toHexString(postFloatingConn.hashCode()));
-        }
-        android.util.Log.d("juloo.keyboard2.fork", "InputConnection changed: " + (initialConn != postFloatingConn));
-      }
-    } else {
-      Logs.debug("Using regular keyboard mode");
-      removeFloatingKeyboard();
-      setInputView(_keyboardView);
-    }
+    setInputView(_keyboardView);
     
     Logs.debug_startup_input_view(info, _config);
   }
@@ -384,34 +313,6 @@ public class Keyboard2 extends InputMethodService
     updateSoftInputWindowLayoutParams();
   }
 
-  @Override
-  public void onComputeInsets(Insets outInsets) {
-    super.onComputeInsets(outInsets);
-    
-    if (_floatingKeyboardActive && _floatingContainer != null && _floatingKeyboardView != null) {
-      // In floating mode, apps can use the full screen
-      outInsets.contentTopInsets = 0;
-      outInsets.visibleTopInsets = 0;
-      outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION;
-      
-      // Define touchable region to include only areas with actual keys
-      // This allows touches in gaps to pass through to the app
-      int x = _floatingLayoutParams != null ? _floatingLayoutParams.x : 0;
-      int y = _floatingLayoutParams != null ? _floatingLayoutParams.y : 0;
-      
-      // Get container dimensions
-      int containerWidth = _floatingContainer.getWidth();
-      int containerHeight = _floatingContainer.getHeight();
-      
-      if (containerWidth > 0 && containerHeight > 0) {
-        // Set touchable region to the entire floating keyboard area
-        // The keyboard view itself will handle determining key vs gap touches
-        outInsets.touchableRegion.setEmpty();
-        outInsets.touchableRegion.set(x, y, x + containerWidth, y + containerHeight);
-      }
-    }
-    // For docked mode, let super.onComputeInsets handle it normally
-  }
 
   private void updateSoftInputWindowLayoutParams() {
     final Window window = getWindow().getWindow();
@@ -592,7 +493,7 @@ public class Keyboard2 extends InputMethodService
           break;
 
         case TOGGLE_FLOATING:
-          toggle_floating_mode();
+          switch_to_floating_ime();
           break;
       }
     }
@@ -614,14 +515,7 @@ public class Keyboard2 extends InputMethodService
 
     public InputConnection getCurrentInputConnection()
     {
-      InputConnection conn = Keyboard2.this.getCurrentInputConnection();
-      android.util.Log.d("juloo.keyboard2.fork", "Receiver.getCurrentInputConnection() called");
-      android.util.Log.d("juloo.keyboard2.fork", "  Floating mode: " + _floatingKeyboardActive);
-      android.util.Log.d("juloo.keyboard2.fork", "  Returned connection: " + conn);
-      if (conn != null) {
-        android.util.Log.d("juloo.keyboard2.fork", "  Connection hashCode: " + Integer.toHexString(conn.hashCode()));
-      }
-      return conn;
+      return Keyboard2.this.getCurrentInputConnection();
     }
 
     public Handler getHandler()
@@ -635,247 +529,27 @@ public class Keyboard2 extends InputMethodService
     return getWindow().getWindow().getAttributes().token;
   }
 
-  private void toggle_floating_mode()
+  private void switch_to_floating_ime()
   {
-    boolean newFloatingState = !_config.floating_keyboard;
-    android.util.Log.d("juloo.keyboard2.fork", "Toggling floating mode: " + _config.floating_keyboard + " -> " + newFloatingState);
+    android.util.Log.d("juloo.keyboard2.fork", "Switching to floating IME");
     
-    // Update the preference immediately
-    SharedPreferences.Editor editor = Config.globalPrefs().edit();
-    editor.putBoolean("floating_keyboard", newFloatingState);
-    editor.commit(); // Use commit() for immediate write instead of apply()
+    // Switch to the floating keyboard IME
+    InputMethodManager imm = get_imm();
+    String floatingImeId = getPackageName() + "/.FloatingKeyboard2";
     
-    // Force immediate config refresh to ensure UI updates
-    refresh_config();
-    
-    android.util.Log.d("juloo.keyboard2.fork", "Floating mode toggled to: " + _config.floating_keyboard);
+    try {
+      // Request to switch to the floating IME
+      imm.setInputMethod(getConnectionToken(), floatingImeId);
+      android.util.Log.d("juloo.keyboard2.fork", "Requested switch to floating IME: " + floatingImeId);
+    } catch (Exception e) {
+      android.util.Log.e("juloo.keyboard2.fork", "Failed to switch to floating IME: " + e.getMessage());
+      // Fallback - show IME picker so user can manually select
+      imm.showInputMethodPicker();
+    }
   }
 
   private View inflate_view(int layout)
   {
     return View.inflate(new ContextThemeWrapper(this, _config.theme), layout, null);
   }
-  
-  private boolean hasSystemAlertWindowPermission() {
-    if (VERSION.SDK_INT >= 23) {
-      return Settings.canDrawOverlays(this);
-    }
-    return true;
-  }
-  
-  private void requestSystemAlertWindowPermission() {
-    if (VERSION.SDK_INT >= 23 && !hasSystemAlertWindowPermission()) {
-      Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-          Uri.parse("package:" + getPackageName()));
-      intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-      startActivity(intent);
-      Toast.makeText(this, "Please enable 'Display over other apps' permission for floating keyboard", 
-          Toast.LENGTH_LONG).show();
-    }
-  }
-  
-  private void createFloatingKeyboard() {
-    Logs.debug("createFloatingKeyboard called");
-    if (_floatingKeyboardActive) {
-      Logs.debug("Floating keyboard already active");
-      return;
-    }
-    
-    if (!hasSystemAlertWindowPermission()) {
-      requestSystemAlertWindowPermission();
-      return;
-    }
-    
-    try {
-      // Hide the docked keyboard by requesting to hide self
-      requestHideSelf(0);
-      
-      // Make the IME window completely invisible and non-interactive
-      Window imeWindow = getWindow().getWindow();
-      WindowManager.LayoutParams imeParams = imeWindow.getAttributes();
-      imeParams.height = 1; // Minimize height
-      imeParams.width = 1;  // Minimize width  
-      imeParams.x = -1000;  // Move off screen
-      imeParams.y = -1000;  // Move off screen
-      imeParams.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | 
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
-      imeWindow.setAttributes(imeParams);
-      
-      // Create floating keyboard view (clone of current keyboard)
-      _floatingKeyboardView = inflate_view(R.layout.keyboard);
-      ((Keyboard2View)_floatingKeyboardView).setKeyboard(current_layout());
-      ((Keyboard2View)_floatingKeyboardView).reset();
-      
-      // Create container with drag handle using custom pass-through layout
-      PassThroughLinearLayout container = new PassThroughLinearLayout(this);
-      container.setOrientation(LinearLayout.VERTICAL);
-      
-      // Create simple drag handle - 10px height, fully draggable
-      View dragHandle = new View(this);
-      
-      // Create rounded background drawable
-      GradientDrawable handleDrawable = new GradientDrawable();
-      handleDrawable.setColor(0xFF4C566A); // Darker Nord color
-      handleDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density); // 6dp radius
-      dragHandle.setBackground(handleDrawable);
-      
-      int handleHeight = 10; // Simple 10px height
-      int screenWidth = getResources().getDisplayMetrics().widthPixels;
-      int handleWidth = (int) (screenWidth * 0.2f); // 20% of screen width
-      int marginBottom = (int) (3 * getResources().getDisplayMetrics().density); // 3dp margin
-      
-      LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(handleWidth, handleHeight);
-      handleParams.gravity = Gravity.CENTER_HORIZONTAL; // Center the handle
-      handleParams.setMargins(0, 0, 0, marginBottom); // Add margin under handle
-      container.addView(dragHandle, handleParams);
-      
-      // Add keyboard with full width
-      LinearLayout.LayoutParams keyboardParams = new LinearLayout.LayoutParams(
-          LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-      container.addView(_floatingKeyboardView, keyboardParams);
-      
-      // Set up window parameters for overlay - allow pass-through for unhandled touches
-      WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-          WindowManager.LayoutParams.WRAP_CONTENT,
-          WindowManager.LayoutParams.WRAP_CONTENT,
-          VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE,
-          WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | 
-          WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-          WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
-          PixelFormat.TRANSLUCENT);
-      
-      params.gravity = Gravity.TOP | Gravity.LEFT;
-      params.x = 100;
-      params.y = 300;
-      
-      // Add floating window
-      _windowManager.addView(container, params);
-      _floatingLayoutParams = params;
-      _floatingContainer = container;
-      
-      // Set up drag functionality
-      dragHandle.setOnTouchListener(new FloatingDragTouchListener());
-      
-      _floatingKeyboardActive = true;
-      android.util.Log.d("juloo.keyboard2.fork", "Floating overlay window created");
-      
-    } catch (Exception e) {
-      Logs.exn("Failed to create floating keyboard", e);
-      _config.floating_keyboard = false;
-    }
-  }
-  
-  private void removeFloatingKeyboard() {
-    if (_floatingKeyboardActive) {
-      try {
-        // Remove the floating overlay window
-        if (_floatingContainer != null) {
-          _windowManager.removeView(_floatingContainer);
-          _floatingContainer = null;
-        }
-        
-        // Restore normal IME window behavior
-        getWindow().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
-        
-      } catch (Exception e) {
-        Logs.exn("Failed to remove floating keyboard", e);
-      }
-      
-      _floatingKeyboardActive = false;
-      _floatingKeyboardView = null;
-      _floatingLayoutParams = null;
-      
-      android.util.Log.d("juloo.keyboard2.fork", "Floating keyboard removed");
-    }
-  }
-
-  private LinearLayout _floatingContainer;
-
-  private class FloatingDragTouchListener implements View.OnTouchListener {
-    private float startX, startY;
-    private float startTouchX, startTouchY;
-
-    @Override
-    public boolean onTouch(View v, MotionEvent event) {
-      if (!_floatingKeyboardActive || _floatingLayoutParams == null) {
-        return false;
-      }
-
-      switch (event.getAction()) {
-        case MotionEvent.ACTION_DOWN:
-          startX = _floatingLayoutParams.x;
-          startY = _floatingLayoutParams.y;
-          startTouchX = event.getRawX();
-          startTouchY = event.getRawY();
-          return true;
-
-        case MotionEvent.ACTION_MOVE:
-          float deltaX = event.getRawX() - startTouchX;
-          float deltaY = event.getRawY() - startTouchY;
-          
-          _floatingLayoutParams.x = (int) (startX + deltaX);
-          _floatingLayoutParams.y = (int) (startY + deltaY);
-          
-          _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
-          return true;
-
-        case MotionEvent.ACTION_UP:
-        case MotionEvent.ACTION_CANCEL:
-          return true;
-      }
-      
-      return false;
-    }
-  }
-
-  // Custom container that allows touch pass-through for gaps
-  private class PassThroughLinearLayout extends LinearLayout {
-    public PassThroughLinearLayout(Context context) {
-      super(context);
-    }
-
-    @Override
-    public boolean onInterceptTouchEvent(MotionEvent ev) {
-      // Never intercept - always let children try first
-      return false;
-    }
-
-    @Override
-    public boolean dispatchTouchEvent(MotionEvent ev) {
-      // Let children handle the event first
-      boolean handled = super.dispatchTouchEvent(ev);
-      
-      if (!handled) {
-        // If no child handled it, it's a gap touch - try to pass through
-        android.util.Log.d("juloo.keyboard2.fork", "Gap touch detected - attempting pass-through");
-        
-        // For gap touches, we need to make the window temporarily non-touchable
-        // so the touch can pass to the app behind
-        if (_floatingLayoutParams != null && ev.getAction() == MotionEvent.ACTION_DOWN) {
-          try {
-            // Temporarily remove touchable flag to let this touch pass through
-            _floatingLayoutParams.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
-            _windowManager.updateViewLayout(this, _floatingLayoutParams);
-            
-            // Restore touchable flag after a short delay
-            postDelayed(new Runnable() {
-              @Override
-              public void run() {
-                if (_floatingLayoutParams != null) {
-                  _floatingLayoutParams.flags &= ~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
-                  _windowManager.updateViewLayout(PassThroughLinearLayout.this, _floatingLayoutParams);
-                }
-              }
-            }, 50); // 50ms delay
-            
-          } catch (Exception e) {
-            android.util.Log.e("juloo.keyboard2.fork", "Failed to toggle touchable flag: " + e.getMessage());
-          }
-        }
-      }
-      
-      return handled;
-    }
-  }
-  
 }

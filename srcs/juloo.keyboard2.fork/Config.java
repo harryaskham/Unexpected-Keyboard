@@ -70,7 +70,6 @@ public final class Config
   public boolean borderConfig;
   public int circle_sensitivity;
   public boolean clipboard_history_enabled;
-  public boolean floating_keyboard;
 
   // Dynamically set
   public boolean shouldOfferVoiceTyping;
@@ -181,8 +180,6 @@ public final class Config
     current_layout_wide = _prefs.getInt("current_layout_landscape", 0);
     circle_sensitivity = Integer.valueOf(_prefs.getString("circle_sensitivity", "2"));
     clipboard_history_enabled = _prefs.getBoolean("clipboard_history_enabled", false);
-    floating_keyboard = _prefs.getBoolean("floating_keyboard", false);
-    android.util.Log.d("juloo.keyboard2.fork", "Config refresh: floating_keyboard=" + floating_keyboard);
 
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;
