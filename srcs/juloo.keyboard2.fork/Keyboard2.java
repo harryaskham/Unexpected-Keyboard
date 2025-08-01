@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.PixelFormat;
+import android.graphics.drawable.GradientDrawable;
 import android.inputmethodservice.InputMethodService;
 import android.net.Uri;
 import android.os.Build.VERSION;
@@ -387,11 +388,27 @@ public class Keyboard2 extends InputMethodService
   public void onComputeInsets(Insets outInsets) {
     super.onComputeInsets(outInsets);
     
-    if (_floatingKeyboardActive) {
+    if (_floatingKeyboardActive && _floatingContainer != null && _floatingKeyboardView != null) {
       // In floating mode, apps can use the full screen
       outInsets.contentTopInsets = 0;
       outInsets.visibleTopInsets = 0;
-      outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_FRAME;
+      outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION;
+      
+      // Define touchable region to include only areas with actual keys
+      // This allows touches in gaps to pass through to the app
+      int x = _floatingLayoutParams != null ? _floatingLayoutParams.x : 0;
+      int y = _floatingLayoutParams != null ? _floatingLayoutParams.y : 0;
+      
+      // Get container dimensions
+      int containerWidth = _floatingContainer.getWidth();
+      int containerHeight = _floatingContainer.getHeight();
+      
+      if (containerWidth > 0 && containerHeight > 0) {
+        // Set touchable region to the entire floating keyboard area
+        // The keyboard view itself will handle determining key vs gap touches
+        outInsets.touchableRegion.setEmpty();
+        outInsets.touchableRegion.set(x, y, x + containerWidth, y + containerHeight);
+      }
     }
     // For docked mode, let super.onComputeInsets handle it normally
   }
@@ -623,13 +640,15 @@ public class Keyboard2 extends InputMethodService
     boolean newFloatingState = !_config.floating_keyboard;
     android.util.Log.d("juloo.keyboard2.fork", "Toggling floating mode: " + _config.floating_keyboard + " -> " + newFloatingState);
     
-    // Update the preference
+    // Update the preference immediately
     SharedPreferences.Editor editor = Config.globalPrefs().edit();
     editor.putBoolean("floating_keyboard", newFloatingState);
-    editor.apply();
+    editor.commit(); // Use commit() for immediate write instead of apply()
     
-    // The preference change will trigger onSharedPreferenceChanged which calls refresh_config
-    // and handles the UI transition automatically
+    // Force immediate config refresh to ensure UI updates
+    refresh_config();
+    
+    android.util.Log.d("juloo.keyboard2.fork", "Floating mode toggled to: " + _config.floating_keyboard);
   }
 
   private View inflate_view(int layout)
@@ -668,34 +687,61 @@ public class Keyboard2 extends InputMethodService
     }
     
     try {
-      // Hide the normal IME window - make it invisible but keep it functional
-      getWindow().getWindow().setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE, 
-                                       WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+      // Hide the docked keyboard by requesting to hide self
+      requestHideSelf(0);
+      
+      // Make the IME window completely invisible and non-interactive
+      Window imeWindow = getWindow().getWindow();
+      WindowManager.LayoutParams imeParams = imeWindow.getAttributes();
+      imeParams.height = 1; // Minimize height
+      imeParams.width = 1;  // Minimize width  
+      imeParams.x = -1000;  // Move off screen
+      imeParams.y = -1000;  // Move off screen
+      imeParams.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | 
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+      imeWindow.setAttributes(imeParams);
       
       // Create floating keyboard view (clone of current keyboard)
       _floatingKeyboardView = inflate_view(R.layout.keyboard);
       ((Keyboard2View)_floatingKeyboardView).setKeyboard(current_layout());
       ((Keyboard2View)_floatingKeyboardView).reset();
       
-      // Create container with drag handle
-      LinearLayout container = new LinearLayout(this);
+      // Create container with drag handle using custom pass-through layout
+      PassThroughLinearLayout container = new PassThroughLinearLayout(this);
       container.setOrientation(LinearLayout.VERTICAL);
       
-      // Create drag handle
+      // Create simple drag handle - 10px height, fully draggable
       View dragHandle = new View(this);
-      dragHandle.setBackgroundColor(0xFF88C0D0); // Nord accent color
-      int handleHeight = (int) (12 * getResources().getDisplayMetrics().density);
-      LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(
-          LinearLayout.LayoutParams.MATCH_PARENT, handleHeight);
-      container.addView(dragHandle, handleParams);
-      container.addView(_floatingKeyboardView);
       
-      // Set up window parameters for overlay
+      // Create rounded background drawable
+      GradientDrawable handleDrawable = new GradientDrawable();
+      handleDrawable.setColor(0xFF4C566A); // Darker Nord color
+      handleDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density); // 6dp radius
+      dragHandle.setBackground(handleDrawable);
+      
+      int handleHeight = 10; // Simple 10px height
+      int screenWidth = getResources().getDisplayMetrics().widthPixels;
+      int handleWidth = (int) (screenWidth * 0.2f); // 20% of screen width
+      int marginBottom = (int) (3 * getResources().getDisplayMetrics().density); // 3dp margin
+      
+      LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(handleWidth, handleHeight);
+      handleParams.gravity = Gravity.CENTER_HORIZONTAL; // Center the handle
+      handleParams.setMargins(0, 0, 0, marginBottom); // Add margin under handle
+      container.addView(dragHandle, handleParams);
+      
+      // Add keyboard with full width
+      LinearLayout.LayoutParams keyboardParams = new LinearLayout.LayoutParams(
+          LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+      container.addView(_floatingKeyboardView, keyboardParams);
+      
+      // Set up window parameters for overlay - allow pass-through for unhandled touches
       WindowManager.LayoutParams params = new WindowManager.LayoutParams(
           WindowManager.LayoutParams.WRAP_CONTENT,
           WindowManager.LayoutParams.WRAP_CONTENT,
           VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE,
-          WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+          WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | 
+          WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+          WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
           PixelFormat.TRANSLUCENT);
       
       params.gravity = Gravity.TOP | Gravity.LEFT;
@@ -779,6 +825,56 @@ public class Keyboard2 extends InputMethodService
       }
       
       return false;
+    }
+  }
+
+  // Custom container that allows touch pass-through for gaps
+  private class PassThroughLinearLayout extends LinearLayout {
+    public PassThroughLinearLayout(Context context) {
+      super(context);
+    }
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+      // Never intercept - always let children try first
+      return false;
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+      // Let children handle the event first
+      boolean handled = super.dispatchTouchEvent(ev);
+      
+      if (!handled) {
+        // If no child handled it, it's a gap touch - try to pass through
+        android.util.Log.d("juloo.keyboard2.fork", "Gap touch detected - attempting pass-through");
+        
+        // For gap touches, we need to make the window temporarily non-touchable
+        // so the touch can pass to the app behind
+        if (_floatingLayoutParams != null && ev.getAction() == MotionEvent.ACTION_DOWN) {
+          try {
+            // Temporarily remove touchable flag to let this touch pass through
+            _floatingLayoutParams.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+            _windowManager.updateViewLayout(this, _floatingLayoutParams);
+            
+            // Restore touchable flag after a short delay
+            postDelayed(new Runnable() {
+              @Override
+              public void run() {
+                if (_floatingLayoutParams != null) {
+                  _floatingLayoutParams.flags &= ~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+                  _windowManager.updateViewLayout(PassThroughLinearLayout.this, _floatingLayoutParams);
+                }
+              }
+            }, 50); // 50ms delay
+            
+          } catch (Exception e) {
+            android.util.Log.e("juloo.keyboard2.fork", "Failed to toggle touchable flag: " + e.getMessage());
+          }
+        }
+      }
+      
+      return handled;
     }
   }
   
