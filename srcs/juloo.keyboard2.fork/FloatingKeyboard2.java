@@ -816,6 +816,7 @@ public class FloatingKeyboard2 extends InputMethodService
     private float resizeStartX, resizeStartY;
     private int initialWidth, initialHeight;
     private int initialWidthPercent, initialHeightPercent;
+    private int initialWindowY;
 
     public ResizableFloatingContainer(Context context) {
       super(context);
@@ -898,6 +899,7 @@ public class FloatingKeyboard2 extends InputMethodService
             initialHeight = ResizableFloatingContainer.this.getHeight();
             initialWidthPercent = _config.floatingKeyboardWidthPercent;
             initialHeightPercent = _config.floatingKeyboardHeightPercent;
+            initialWindowY = _floatingLayoutParams.y;
             
             android.util.Log.d("FloatingKeyboard", "Resize start at: " + resizeStartX + ", " + resizeStartY + " Container size: " + initialWidth + "x" + initialHeight + " Initial: " + initialWidthPercent + "%x" + initialHeightPercent + "%");
             showDebugToast("Resize started - " + initialWidthPercent + "%x" + initialHeightPercent + "%");
@@ -932,6 +934,12 @@ public class FloatingKeyboard2 extends InputMethodService
               // Update both dimensions in config
               updateFloatingKeyboardWidth(newWidthPercent);
               updateFloatingKeyboardHeight(newHeightPercent);
+              
+              // Adjust window Y position to make keyboard grow upward from resize handle
+              // When dragging up (negative deltaY), keyboard gets taller and should move up
+              // When dragging down (positive deltaY), keyboard gets shorter and should move down
+              _floatingLayoutParams.y = initialWindowY + (int)(deltaY * 0.5f); // Use half the drag distance for smoother feel
+              _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
               
               // Force keyboard redraw with new dimensions
               refreshFloatingKeyboard();
