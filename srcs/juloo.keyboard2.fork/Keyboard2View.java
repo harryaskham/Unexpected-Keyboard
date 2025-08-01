@@ -269,12 +269,23 @@ public class Keyboard2View extends View
   {
     int width;
     DisplayMetrics dm = getContext().getResources().getDisplayMetrics();
-    width = dm.widthPixels;
+    
+    // Check if we're in floating mode by examining the context
+    boolean isFloatingMode = isInFloatingMode();
+    
+    if (isFloatingMode) {
+      // Use floating keyboard width percentage
+      width = (int)(dm.widthPixels * _config.floatingKeyboardWidthPercent / 100.0f);
+    } else {
+      // Use full screen width for docked mode
+      width = dm.widthPixels;
+    }
+    
     _marginLeft = Math.max(_config.horizontal_margin, _insets_left);
     _marginRight = Math.max(_config.horizontal_margin, _insets_right);
     _marginBottom = _config.margin_bottom + _insets_bottom;
     _keyWidth = (width - _marginLeft - _marginRight) / _keyboard.keysWidth;
-    _tc = new Theme.Computed(_theme, _config, _keyWidth, _keyboard);
+    _tc = new Theme.Computed(_theme, _config, _keyWidth, _keyboard, isFloatingMode);
     // Compute the size of labels based on the width or the height of keys. The
     // margin around keys is taken into account. Keys normal aspect ratio is
     // assumed to be 3/2. It's generally more, the width computation is useful
@@ -375,6 +386,20 @@ public class Keyboard2View extends View
   public void onDetachedFromWindow()
   {
     super.onDetachedFromWindow();
+  }
+
+  /** Check if this keyboard view is being used in floating mode */
+  private boolean isInFloatingMode()
+  {
+    Context context = getContext();
+    // Check if the parent context is FloatingKeyboard2
+    while (context instanceof ContextWrapper) {
+      if (context instanceof FloatingKeyboard2) {
+        return true;
+      }
+      context = ((ContextWrapper)context).getBaseContext();
+    }
+    return false;
   }
 
   /** Draw borders and background of the key. */

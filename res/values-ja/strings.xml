@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name_release">Unexpected Keyboard</string>
     <string name="app_name_debug">Unexpected Keyboard (Debug)</string>
+    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
     <string name="short_description">軽量でプライバシーに配慮したAndroid用仮想キーボード</string>
     <string name="store_description">このキーボードは、キーの角をスワイプすることで様々なキーを入力できます。\n\nこのアプリは元々はTermuxでのプログラミング用に設計されました。\nしかし、今では普段の入力にも適しています。\nPCキーボードでの半角入力を再現しています。日本語入力、変換は出来ません。\n\nこのアプリは広告を含まず、インターネットに接続せず、そしてオープンソースです。</string>
     <string name="pref_portrait">縦向き</string>
@@ -106,6 +107,7 @@
     <string name="key_descr_switch_greekmath">ギリシャ文字と数学記号</string>
     <string name="key_descr_change_method">キーボードの切替</string>
     <string name="key_descr_voice_typing">音声入力</string>
+    <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
     <string name="key_descr_copy">コピー</string>
     <string name="key_descr_paste">貼り付け</string>
     <string name="key_descr_cut">切り取り</string>

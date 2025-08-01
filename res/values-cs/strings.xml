@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name_release">Klávesnice Unexpected</string>
     <string name="app_name_debug">Klávesnice Unexpected (pro ladění)</string>
+    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
     <string name="short_description">Nenáročná virtuální klávesnice pro vývojáře.</string>
     <string name="store_description">Hlavní funkcí je možnost psát více znaků posunutím kláves směrem k rohům.\n\nTato aplikace byla původně navržena pro programátory používající Termux.\nNyní je ideální pro každodenní použití.\n\nTato aplikace neobsahuje žádné reklamy, nevyužívá připojení k síti a je Open Source.</string>
     <string name="pref_portrait">V režimu na výšku</string>
@@ -106,6 +107,7 @@
     <string name="key_descr_switch_greekmath">Řecké a matematické symboly</string>
     <string name="key_descr_change_method">Přepnout klávesnici</string>
     <string name="key_descr_voice_typing">Hlasové zadávání</string>
+    <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
     <string name="key_descr_copy">Kopírovat</string>
     <string name="key_descr_paste">Vložit</string>
     <string name="key_descr_cut">Vyjmout</string>

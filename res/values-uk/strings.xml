@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name_release">Unexpected Keyboard</string>
     <string name="app_name_debug">Unexpected Keyboard (Налагодження)</string>
+    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
     <string name="short_description">Легка та конфіденційна віртуальна клавіатура для Android.</string>
     <string name="store_description">Головна особливість полягає в тому, що ви можете вводити більше символів, проводячи клавіші до кутів.\n\nЦя програма спочатку була розроблена для програмістів, які використовують Termux.\nТепер ідеально підходить для щоденного використання.\n\nЦя програма не містить реклами, не надсилає жодних мережевих запитів і має відкритий код.</string>
     <string name="pref_portrait">У портретному режимі</string>
@@ -106,6 +107,7 @@
     <string name="key_descr_switch_greekmath">Грецькі та математичні символи</string>
     <string name="key_descr_change_method">Переключити клавіатуру</string>
     <string name="key_descr_voice_typing">Голосове введення</string>
+    <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
     <string name="key_descr_copy">Копіювати</string>
     <string name="key_descr_paste">Вставити</string>
     <string name="key_descr_cut">Вирізати</string>

@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name_release">Unexpected Keyboard</string>
     <string name="app_name_debug">Unexpected Keyboard (debug)</string>
+    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
     <string name="short_description">Android için hafif ve güvenlik odaklı bir sanal klavye uygulaması.</string>
     <string name="store_description">Bu uygulama özünde tuşların kenarlarından kaydırarak daha fazla karakter yazabilmek amacıyla geliştirildi.\n\nBu uygulama aslında Termux kullanıcıları için geliştirildi.\nArtık gündelik kullanım için de uygun.\n\nBu uygulama açık kaynaklıdır. Reklam içermez ve internete bağlanmaz.</string>
     <string name="pref_portrait">Portre modunda</string>
@@ -106,6 +107,7 @@
     <string name="key_descr_switch_greekmath">Greek &amp; math sembolleri</string>
     <string name="key_descr_change_method">Klavye değiştir</string>
     <string name="key_descr_voice_typing">Sesle yazma</string>
+    <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
     <string name="key_descr_copy">Kopyala</string>
     <string name="key_descr_paste">Yapıştır</string>
     <string name="key_descr_cut">Kes</string>

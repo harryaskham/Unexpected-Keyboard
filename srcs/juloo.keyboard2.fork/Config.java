@@ -51,6 +51,9 @@ public final class Config
   public boolean keyrepeat_enabled;
   public float margin_bottom;
   public int keyboardHeightPercent;
+  public int keyboardWidthPercent;
+  public int floatingKeyboardHeightPercent;
+  public int floatingKeyboardWidthPercent;
   public int screenHeightPixels;
   public float horizontal_margin;
   public float key_vertical_margin;
@@ -125,11 +128,17 @@ public final class Config
       if ("landscape".equals(show_numpad_s))
         show_numpad = true;
       keyboardHeightPercent = _prefs.getInt(foldable_unfolded ? "keyboard_height_landscape_unfolded" : "keyboard_height_landscape", 50);
+      keyboardWidthPercent = _prefs.getInt(foldable_unfolded ? "keyboard_width_landscape_unfolded" : "keyboard_width_landscape", 100);
+      floatingKeyboardHeightPercent = _prefs.getInt(foldable_unfolded ? "floating_keyboard_height_landscape_unfolded" : "floating_keyboard_height_landscape", 35);
+      floatingKeyboardWidthPercent = _prefs.getInt(foldable_unfolded ? "floating_keyboard_width_landscape_unfolded" : "floating_keyboard_width_landscape", 100);
       characterSizeScale = 1.25f;
     }
     else
     {
       keyboardHeightPercent = _prefs.getInt(foldable_unfolded ? "keyboard_height_unfolded" : "keyboard_height", 35);
+      keyboardWidthPercent = _prefs.getInt(foldable_unfolded ? "keyboard_width_unfolded" : "keyboard_width", 100);
+      floatingKeyboardHeightPercent = _prefs.getInt(foldable_unfolded ? "floating_keyboard_height_unfolded" : "floating_keyboard_height", 25);
+      floatingKeyboardWidthPercent = _prefs.getInt(foldable_unfolded ? "floating_keyboard_width_unfolded" : "floating_keyboard_width", 100);
     }
     layouts = LayoutsPreference.load_from_preferences(res, _prefs);
     inverse_numpad = _prefs.getString("numpad_layout", "default").equals("low_first");

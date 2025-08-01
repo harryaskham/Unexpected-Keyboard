@@ -16,6 +16,7 @@ import android.util.DisplayMetrics;
 import android.view.*;
 import android.view.inputmethod.EditorInfo;
 import android.widget.LinearLayout;
+import android.widget.FrameLayout;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodManager;
@@ -42,7 +43,7 @@ public class FloatingKeyboard2 extends InputMethodService
   private boolean _floatingKeyboardActive = false;
   private View _floatingKeyboardView;
   private WindowManager.LayoutParams _floatingLayoutParams;
-  private LinearLayout _floatingContainer;
+  private ViewGroup _floatingContainer;
 
   KeyboardData current_layout_unmodified()
   {
@@ -401,6 +402,201 @@ public class FloatingKeyboard2 extends InputMethodService
     return View.inflate(new android.view.ContextThemeWrapper(this, _config.theme), layout, null);
   }
   
+  private void showDebugToast(String message) {
+    if (_config != null && isDebugModeEnabled()) {
+      Toast.makeText(this, "FloatingKB: " + message, Toast.LENGTH_SHORT).show();
+    }
+  }
+  
+  private boolean isDebugModeEnabled() {
+    return DirectBootAwarePreferences.get_shared_preferences(this)
+        .getBoolean("floating_debug_mode", false);
+  }
+  
+  private void updateFloatingKeyboardWidth(int widthPercent) {
+    SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(this);
+    SharedPreferences.Editor editor = prefs.edit();
+    
+    // Update the appropriate floating keyboard width setting based on orientation
+    boolean landscape = _config.orientation_landscape;
+    boolean unfolded = _config.foldable_unfolded;
+    
+    String prefKey;
+    if (landscape) {
+      prefKey = unfolded ? "floating_keyboard_width_landscape_unfolded" : "floating_keyboard_width_landscape";
+    } else {
+      prefKey = unfolded ? "floating_keyboard_width_unfolded" : "floating_keyboard_width";
+    }
+    
+    editor.putInt(prefKey, widthPercent);
+    editor.apply();
+    
+    // Update the runtime config
+    _config.floatingKeyboardWidthPercent = widthPercent;
+    
+    showDebugToast("Width updated to " + widthPercent + "%");
+  }
+  
+  private void refreshFloatingKeyboard() {
+    if (_floatingKeyboardView != null && _floatingKeyboardActive) {
+      // Refresh the config to pick up new dimensions
+      _config.refresh(getResources(), _config.foldable_unfolded);
+      
+      // Update the keyboard view with new layout
+      ((Keyboard2View)_floatingKeyboardView).setKeyboard(current_layout());
+      ((Keyboard2View)_floatingKeyboardView).reset();
+      
+      // Request layout update
+      if (_floatingContainer != null) {
+        _floatingContainer.requestLayout();
+        _floatingContainer.invalidate();
+      }
+    }
+  }
+  
+  private void runFloatingKeyboardTests(ResizableFloatingContainer container) {
+    android.util.Log.d("FloatingKeyboard", "=== RUNNING FLOATING KEYBOARD TESTS ===");
+    showDebugToast("Running floating keyboard diagnostics...");
+    
+    // Test 1: View Hierarchy Analysis
+    testViewHierarchy(container);
+    
+    // Test 2: Touch Region Analysis
+    testTouchRegions(container);
+    
+    // Test 3: Window Properties
+    testWindowProperties();
+    
+    // Test 4: Synthetic Touch Tests
+    testSyntheticTouches(container);
+    
+    android.util.Log.d("FloatingKeyboard", "=== TESTS COMPLETE ===");
+    showDebugToast("Diagnostics complete - check for handle visibility");
+  }
+  
+  private void testViewHierarchy(ResizableFloatingContainer container) {
+    android.util.Log.d("FloatingKeyboard", "--- View Hierarchy Test ---");
+    android.util.Log.d("FloatingKeyboard", "Container type: " + container.getClass().getSimpleName());
+    android.util.Log.d("FloatingKeyboard", "Container size: " + container.getWidth() + "x" + container.getHeight());
+    android.util.Log.d("FloatingKeyboard", "Container child count: " + container.getChildCount());
+    android.util.Log.d("FloatingKeyboard", "Container clickable: " + container.isClickable());
+    android.util.Log.d("FloatingKeyboard", "Container enabled: " + container.isEnabled());
+    
+    showDebugToast("Container: " + container.getWidth() + "x" + container.getHeight() + 
+                   " with " + container.getChildCount() + " children");
+    
+    for (int i = 0; i < container.getChildCount(); i++) {
+      View child = container.getChildAt(i);
+      android.util.Log.d("FloatingKeyboard", "Child " + i + ":");
+      android.util.Log.d("FloatingKeyboard", "  Type: " + child.getClass().getSimpleName());
+      android.util.Log.d("FloatingKeyboard", "  Size: " + child.getWidth() + "x" + child.getHeight());
+      android.util.Log.d("FloatingKeyboard", "  Position: " + child.getLeft() + "," + child.getTop());
+      android.util.Log.d("FloatingKeyboard", "  Visible: " + (child.getVisibility() == View.VISIBLE));
+      android.util.Log.d("FloatingKeyboard", "  Clickable: " + child.isClickable());
+      android.util.Log.d("FloatingKeyboard", "  HasOnTouchListener: " + child.hasOnClickListeners());
+      android.util.Log.d("FloatingKeyboard", "  Elevation: " + child.getElevation());
+      
+      if (child == _floatingKeyboardView) {
+        android.util.Log.d("FloatingKeyboard", "  >>> This is the keyboard view");
+      }
+    }
+  }
+  
+  private void testTouchRegions(ResizableFloatingContainer container) {
+    android.util.Log.d("FloatingKeyboard", "--- Touch Region Test ---");
+    
+    // Test various points to see what should receive touches
+    int containerWidth = container.getWidth();
+    int containerHeight = container.getHeight();
+    
+    // Test points
+    float[][] testPoints = {
+      {containerWidth * 0.5f, 15f}, // Center top (drag handle area)
+      {containerWidth * 0.9f, 15f}, // Right top (resize handle area)  
+      {containerWidth * 0.5f, containerHeight * 0.5f}, // Center middle (keyboard area)
+      {containerWidth * 0.1f, containerHeight * 0.9f}, // Bottom left (keyboard area)
+      {containerWidth * 1.1f, containerHeight * 0.5f}, // Outside container
+    };
+    
+    String[] pointNames = {"Drag Handle", "Resize Handle", "Keyboard Center", "Keyboard Bottom", "Outside"};
+    
+    for (int i = 0; i < testPoints.length; i++) {
+      float x = testPoints[i][0];
+      float y = testPoints[i][1];
+      
+      android.util.Log.d("FloatingKeyboard", "Test point " + pointNames[i] + " (" + x + "," + y + "):");
+      
+      // Check which child would receive this touch
+      View hitChild = findChildViewUnder(container, x, y);
+      if (hitChild != null) {
+        android.util.Log.d("FloatingKeyboard", "  Would hit: " + hitChild.getClass().getSimpleName());
+      } else {
+        android.util.Log.d("FloatingKeyboard", "  Would hit: container background");
+      }
+    }
+  }
+  
+  private void testWindowProperties() {
+    android.util.Log.d("FloatingKeyboard", "--- Window Properties Test ---");
+    
+    if (_floatingLayoutParams != null) {
+      android.util.Log.d("FloatingKeyboard", "Window type: " + _floatingLayoutParams.type);
+      android.util.Log.d("FloatingKeyboard", "Window flags: " + _floatingLayoutParams.flags);
+      android.util.Log.d("FloatingKeyboard", "Window format: " + _floatingLayoutParams.format);
+      android.util.Log.d("FloatingKeyboard", "Window size: " + _floatingLayoutParams.width + "x" + _floatingLayoutParams.height);
+      android.util.Log.d("FloatingKeyboard", "Window position: " + _floatingLayoutParams.x + "," + _floatingLayoutParams.y);
+      
+      // Check specific flags
+      int flags = _floatingLayoutParams.flags;
+      android.util.Log.d("FloatingKeyboard", "FLAG_NOT_TOUCH_MODAL: " + ((flags & WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL) != 0));
+      android.util.Log.d("FloatingKeyboard", "FLAG_NOT_FOCUSABLE: " + ((flags & WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE) != 0));
+      android.util.Log.d("FloatingKeyboard", "FLAG_WATCH_OUTSIDE_TOUCH: " + ((flags & WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH) != 0));
+    }
+  }
+  
+  private void testSyntheticTouches(ResizableFloatingContainer container) {
+    android.util.Log.d("FloatingKeyboard", "--- Synthetic Touch Test ---");
+    
+    // Create synthetic touch events to test the touch handling
+    long downTime = android.os.SystemClock.uptimeMillis();
+    long eventTime = android.os.SystemClock.uptimeMillis();
+    
+    // Test touch on resize handle area
+    float resizeX = container.getWidth() * 0.9f;
+    float resizeY = 15f;
+    
+    MotionEvent syntheticDown = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_DOWN, resizeX, resizeY, 0);
+    
+    android.util.Log.d("FloatingKeyboard", "Sending synthetic DOWN touch to resize area (" + resizeX + "," + resizeY + ")");
+    
+    // Test which view would handle this
+    View targetView = findChildViewUnder(container, resizeX, resizeY);
+    if (targetView != null) {
+      android.util.Log.d("FloatingKeyboard", "Target view for synthetic touch: " + targetView.getClass().getSimpleName());
+      boolean handled = targetView.dispatchTouchEvent(syntheticDown);
+      android.util.Log.d("FloatingKeyboard", "Synthetic touch handled by target: " + handled);
+    } else {
+      android.util.Log.d("FloatingKeyboard", "No target view found, testing container");
+      boolean handled = container.dispatchTouchEvent(syntheticDown);
+      android.util.Log.d("FloatingKeyboard", "Synthetic touch handled by container: " + handled);
+    }
+    
+    syntheticDown.recycle();
+  }
+  
+  private View findChildViewUnder(ViewGroup parent, float x, float y) {
+    for (int i = parent.getChildCount() - 1; i >= 0; i--) {
+      View child = parent.getChildAt(i);
+      if (child.getVisibility() == View.VISIBLE) {
+        if (x >= child.getLeft() && x < child.getRight() && 
+            y >= child.getTop() && y < child.getBottom()) {
+          return child;
+        }
+      }
+    }
+    return null;
+  }
+  
   private boolean hasSystemAlertWindowPermission() {
     if (VERSION.SDK_INT >= 23) {
       return Settings.canDrawOverlays(this);
@@ -435,43 +631,54 @@ public class FloatingKeyboard2 extends InputMethodService
       ((Keyboard2View)_floatingKeyboardView).setKeyboard(current_layout());
       ((Keyboard2View)_floatingKeyboardView).reset();
       
-      // Make keyboard background transparent for pass-through
-      _floatingKeyboardView.setBackground(null);
+      // Ensure keyboard view gets proper touch and event handling
+      ((Keyboard2View)_floatingKeyboardView).setEnabled(true);
+      ((Keyboard2View)_floatingKeyboardView).setClickable(true);
+      ((Keyboard2View)_floatingKeyboardView).setFocusable(true);
+      
+      // Revert background - keyboard has its own opacity controls
+      // _floatingKeyboardView.setBackground(null); // Removed - let keyboard handle its own background
       
       // Create container with drag handle and resize handle
       ResizableFloatingContainer container = new ResizableFloatingContainer(this);
-      container.setOrientation(LinearLayout.VERTICAL);
       
-      // Create simple drag handle - 16px height, narrow width, fully draggable
+      // Add keyboard first
+      FrameLayout.LayoutParams keyboardParams = new FrameLayout.LayoutParams(
+          FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+      keyboardParams.gravity = Gravity.CENTER;
+      keyboardParams.setMargins(0, 30, 0, 0); // Leave space for drag handle at top
+      container.addView(_floatingKeyboardView, keyboardParams);
+      
+      // Create drag handle
       View dragHandle = new View(this);
-      
       GradientDrawable handleDrawable = new GradientDrawable();
       handleDrawable.setColor(0xFF4C566A);
       handleDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density);
       dragHandle.setBackground(handleDrawable);
       
-      int handleHeight = 24; // Increased to 24px
+      int handleHeight = 24;
       int screenWidth = getResources().getDisplayMetrics().widthPixels;
-      int handleWidth = (int) (screenWidth * 0.2f); // Handle is 20% width
-      int marginBottom = 3; // 3px bottom margin
+      int handleWidth = (int) (screenWidth * 0.2f);
       
-      // Add handle with specific width, centered
-      LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(handleWidth, handleHeight);
-      handleParams.gravity = Gravity.CENTER_HORIZONTAL;
-      handleParams.setMargins(0, 0, 0, marginBottom);
-      container.addView(dragHandle, handleParams);
+      FrameLayout.LayoutParams dragParams = new FrameLayout.LayoutParams(handleWidth, handleHeight);
+      dragParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+      dragParams.setMargins(0, 3, 0, 0);
+      container.addView(dragHandle, dragParams);
       
-      // Add keyboard with WRAP_CONTENT to be full width
-      LinearLayout.LayoutParams keyboardParams = new LinearLayout.LayoutParams(
-          LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-      container.addView(_floatingKeyboardView, keyboardParams);
+      // Create resize handle after keyboard is added
+      container.createResizeHandle();
       
-      // Set up window parameters for overlay
+      // Set up window parameters for overlay - try different flags for pass-through
+      int windowFlags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | 
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+      
+      android.util.Log.d("FloatingKeyboard", "Using window flags: " + windowFlags);
+      
       WindowManager.LayoutParams params = new WindowManager.LayoutParams(
           WindowManager.LayoutParams.WRAP_CONTENT,
           WindowManager.LayoutParams.WRAP_CONTENT,
           VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE,
-          WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+          windowFlags,
           PixelFormat.TRANSLUCENT);
       
       params.gravity = Gravity.TOP | Gravity.LEFT;
@@ -482,10 +689,20 @@ public class FloatingKeyboard2 extends InputMethodService
       _floatingLayoutParams = params;
       _floatingContainer = container;
       
-      dragHandle.setOnTouchListener(new FloatingDragTouchListener());
+      dragHandle.setOnTouchListener(new FloatingDragTouchListener(dragHandle));
+      
+      android.util.Log.d("FloatingKeyboard", "Drag handle created - Width: " + handleWidth + " Height: " + handleHeight);
       container.setWindowManager(_windowManager, params);
       
       _floatingKeyboardActive = true;
+      
+      // Run programmatic tests after everything is set up
+      container.post(new Runnable() {
+        @Override
+        public void run() {
+          runFloatingKeyboardTests(container);
+        }
+      });
       
     } catch (Exception e) {
       Logs.exn("Failed to create floating keyboard", e);
@@ -509,19 +726,37 @@ public class FloatingKeyboard2 extends InputMethodService
   private class FloatingDragTouchListener implements View.OnTouchListener {
     private float startX, startY;
     private float startTouchX, startTouchY;
+    private View handleView;
+    private GradientDrawable originalDrawable;
+
+    public FloatingDragTouchListener(View handle) {
+      this.handleView = handle;
+      this.originalDrawable = (GradientDrawable) handle.getBackground();
+    }
 
     @Override
     public boolean onTouch(View v, MotionEvent event) {
+      android.util.Log.d("FloatingKeyboard", "DragTouchListener.onTouch: " + event.getAction());
+      
       if (!_floatingKeyboardActive || _floatingLayoutParams == null) {
+        android.util.Log.d("FloatingKeyboard", "Drag touch rejected - active=" + _floatingKeyboardActive + " params=" + (_floatingLayoutParams != null));
+        showDebugToast("Drag touch rejected - active=" + _floatingKeyboardActive);
         return false;
       }
 
       switch (event.getAction()) {
         case MotionEvent.ACTION_DOWN:
+          // Change handle color when touched
+          GradientDrawable activeDrawable = (GradientDrawable) originalDrawable.getConstantState().newDrawable();
+          activeDrawable.setColor(0xFFD8DEE9); // Light gray when pressed
+          handleView.setBackground(activeDrawable);
+          
           startX = _floatingLayoutParams.x;
           startY = _floatingLayoutParams.y;
           startTouchX = event.getRawX();
           startTouchY = event.getRawY();
+          
+          showDebugToast("Drag started at " + (int)startTouchX + "," + (int)startTouchY);
           return true;
 
         case MotionEvent.ACTION_MOVE:
@@ -536,6 +771,9 @@ public class FloatingKeyboard2 extends InputMethodService
 
         case MotionEvent.ACTION_UP:
         case MotionEvent.ACTION_CANCEL:
+          // Restore original handle color
+          handleView.setBackground(originalDrawable);
+          showDebugToast("Drag ended");
           return true;
       }
       
@@ -544,7 +782,7 @@ public class FloatingKeyboard2 extends InputMethodService
   }
 
 
-  private class ResizableFloatingContainer extends LinearLayout {
+  private class ResizableFloatingContainer extends FrameLayout {
     private View resizeHandle;
     private WindowManager windowManager;
     private WindowManager.LayoutParams layoutParams;
@@ -556,7 +794,10 @@ public class FloatingKeyboard2 extends InputMethodService
 
     public ResizableFloatingContainer(Context context) {
       super(context);
-      createResizeHandle();
+      // Set pivot point for scaling to top-left corner
+      setPivotX(0);
+      setPivotY(0);
+      // Don't create resize handle here, create it after keyboard is added
     }
 
     public void setWindowManager(WindowManager wm, WindowManager.LayoutParams lp) {
@@ -564,39 +805,75 @@ public class FloatingKeyboard2 extends InputMethodService
       layoutParams = lp;
     }
 
-    private void createResizeHandle() {
-      // Create resize handle in top-right corner
+    public void createResizeHandle() {
+      // Create resize handle styled like drag handle but positioned on right
       resizeHandle = new View(getContext());
       
       GradientDrawable resizeDrawable = new GradientDrawable();
-      resizeDrawable.setColor(0xFF4C566A);
-      resizeDrawable.setCornerRadius(4 * getResources().getDisplayMetrics().density);
+      resizeDrawable.setColor(0xFF4C566A); // Same Nord color as drag handle
+      resizeDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density); // Same radius as drag handle
       resizeHandle.setBackground(resizeDrawable);
       
-      int handleHeight = (int)(16 * getResources().getDisplayMetrics().density);
-      int handleWidth = (int)(32 * getResources().getDisplayMetrics().density);
-      LayoutParams handleParams = new LayoutParams(handleWidth, handleHeight);
-      handleParams.gravity = Gravity.TOP | Gravity.RIGHT;
-      handleParams.setMargins(0, 8, 24, 0);
+      int handleHeight = 24; // Same height as drag handle
+      int screenWidth = getResources().getDisplayMetrics().widthPixels;
+      int handleWidth = (int) (screenWidth * 0.2f); // Same width calculation as drag handle
       
-      resizeHandle.setOnTouchListener(new ResizeTouchListener());
+      // Position on top-right, same level as drag handle
+      FrameLayout.LayoutParams handleParams = new FrameLayout.LayoutParams(handleWidth, handleHeight);
+      handleParams.gravity = Gravity.TOP | Gravity.RIGHT;
+      handleParams.setMargins(0, 3, 8, 0); // Same top margin as drag handle, small right margin
+      
+      resizeHandle.setOnTouchListener(new ResizeTouchListener(resizeHandle));
       addView(resizeHandle, handleParams);
+      
+      android.util.Log.d("FloatingKeyboard", "Resize handle created and added - Width: " + handleWidth + " Height: " + handleHeight + " Children: " + getChildCount());
+      
+      // Force visibility and make sure it's on top
+      resizeHandle.setVisibility(View.VISIBLE);
+      resizeHandle.bringToFront();
+      resizeHandle.setElevation(20.0f);
+      
+      // Test if handle gets layout correctly
+      resizeHandle.post(new Runnable() {
+        @Override
+        public void run() {
+          android.util.Log.d("FloatingKeyboard", "Resize handle final position: " + resizeHandle.getLeft() + "," + resizeHandle.getTop() + " to " + resizeHandle.getRight() + "," + resizeHandle.getBottom() + " visibility=" + resizeHandle.getVisibility());
+        }
+      });
     }
 
-    private class ResizeTouchListener implements OnTouchListener {
+    private class ResizeTouchListener implements View.OnTouchListener {
+      private View handleView;
+      private GradientDrawable originalDrawable;
+
+      public ResizeTouchListener(View handle) {
+        this.handleView = handle;
+        this.originalDrawable = (GradientDrawable) handle.getBackground();
+      }
+
       @Override
       public boolean onTouch(View v, MotionEvent event) {
         if (windowManager == null || layoutParams == null) {
           return false;
         }
 
+        android.util.Log.d("FloatingKeyboard", "ResizeTouchListener.onTouch: " + event.getAction());
+        
         switch (event.getAction()) {
           case MotionEvent.ACTION_DOWN:
+            // Change handle color when touched
+            GradientDrawable activeDrawable = (GradientDrawable) originalDrawable.getConstantState().newDrawable();
+            activeDrawable.setColor(0xFFD8DEE9); // Light gray when pressed
+            handleView.setBackground(activeDrawable);
+            
             isResizing = true;
             resizeStartX = event.getRawX();
             resizeStartY = event.getRawY();
-            initialWidth = getWidth();
-            initialHeight = getHeight();
+            initialWidth = ResizableFloatingContainer.this.getWidth();
+            initialHeight = ResizableFloatingContainer.this.getHeight();
+            
+            android.util.Log.d("FloatingKeyboard", "Resize start at: " + resizeStartX + ", " + resizeStartY + " Container size: " + initialWidth + "x" + initialHeight);
+            showDebugToast("Resize started - scale: " + String.format("%.1f", currentScale) + "x");
             return true;
 
           case MotionEvent.ACTION_MOVE:
@@ -604,16 +881,22 @@ public class FloatingKeyboard2 extends InputMethodService
               float deltaX = event.getRawX() - resizeStartX;
               float deltaY = event.getRawY() - resizeStartY;
               
-              // Calculate new scale based on diagonal distance
-              float diagonal = (float) Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-              float scaleFactor = 1.0f + (diagonal / 500.0f); // Adjust sensitivity
+              // Use X movement for width scaling (drag right = smaller, left = bigger)
+              float scaleFactor = 1.0f - (deltaX / 600.0f); // Invert and adjust sensitivity
               
-              // Clamp scale between 0.5x and 2.0x
-              currentScale = Math.max(0.5f, Math.min(2.0f, scaleFactor));
+              // Clamp scale between 0.5x and 1.0x as requested
+              currentScale = Math.max(0.5f, Math.min(1.0f, scaleFactor));
               
-              // Apply scaling to the container
-              setScaleX(currentScale);
-              setScaleY(currentScale);
+              // Convert scale to width percentage (50% to 100%)
+              int newWidthPercent = (int)(currentScale * 100);
+              
+              // Update floating keyboard width in config
+              updateFloatingKeyboardWidth(newWidthPercent);
+              
+              // Force keyboard redraw with new dimensions
+              refreshFloatingKeyboard();
+              
+              android.util.Log.d("FloatingKeyboard", "Scale: " + currentScale + " (delta: " + deltaX + ") - ScaleX: " + ResizableFloatingContainer.this.getScaleX() + " ScaleY: " + ResizableFloatingContainer.this.getScaleY());
               
               return true;
             }
@@ -621,7 +904,11 @@ public class FloatingKeyboard2 extends InputMethodService
 
           case MotionEvent.ACTION_UP:
           case MotionEvent.ACTION_CANCEL:
+            // Restore original handle color
+            handleView.setBackground(originalDrawable);
             isResizing = false;
+            android.util.Log.d("FloatingKeyboard", "Resize end, final scale: " + currentScale);
+            showDebugToast("Resize ended - final scale: " + String.format("%.1f", currentScale) + "x (applied: " + String.format("%.1f", ResizableFloatingContainer.this.getScaleX()) + "x)");
             return true;
         }
         
@@ -629,20 +916,33 @@ public class FloatingKeyboard2 extends InputMethodService
       }
     }
 
-    @Override
+    @Override  
     public boolean onTouchEvent(MotionEvent event) {
-      // Transform touch coordinates based on current scale
-      if (currentScale != 1.0f) {
-        float x = event.getX() / currentScale;
-        float y = event.getY() / currentScale;
-        event.setLocation(x, y);
+      android.util.Log.d("FloatingKeyboard", "Container onTouchEvent: action=" + event.getAction() + " x=" + event.getX() + " y=" + event.getY() + " scale=" + getScaleX());
+      
+      // Transform touch coordinates based on current scale for keyboard interaction
+      if (currentScale != 1.0f && event.getAction() != MotionEvent.ACTION_OUTSIDE) {
+        // Create scaled copy of the event
+        float scaledX = event.getX() / currentScale;
+        float scaledY = event.getY() / currentScale;
+        
+        // Log transformation for debugging
+        android.util.Log.d("FloatingKeyboard", "Touch transform: (" + event.getX() + "," + event.getY() + ") -> (" + scaledX + "," + scaledY + ") at scale " + currentScale);
+        
+        // Let the scaled event propagate to children
+        MotionEvent scaledEvent = MotionEvent.obtain(event);
+        scaledEvent.setLocation(scaledX, scaledY);
+        boolean handled = super.onTouchEvent(scaledEvent);
+        scaledEvent.recycle();
+        return handled;
       }
+      
       return super.onTouchEvent(event);
     }
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
-      // Don't intercept touches, let child views handle them first
+      // Don't intercept - let child views handle touches with proper scaling
       return false;
     }
   }

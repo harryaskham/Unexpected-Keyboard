@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name_release">Unexpected Keyboard</string>
     <string name="app_name_debug">Unexpected Keyboard (Debug)</string>
+    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
     <string name="short_description">Magaan at privacy-conscious na virtual keyboard sa Android.</string>
     <string name="store_description">Ang pangunahing feature ay maaari kang mag-type ng mas marami pang karakter sa pag-swipe sa gilid ng mga key.\n\nNoong simula, ginawa itong application para sa mga programmer sa na nagte-Termux.\nNgayo\'y perpekto na sa pang-araw-araw.\n\nWalang ads, hindi nagne-network request at Open Source ang application na ito.</string>
     <string name="pref_portrait">Nakapatayo</string>
@@ -106,6 +107,7 @@
     <string name="key_descr_switch_greekmath">Simbolong Griyego at ng matematika</string>
     <string name="key_descr_change_method">Magpalit ng keyboard</string>
     <string name="key_descr_voice_typing">Voice typing</string>
+    <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
     <string name="key_descr_copy">I-copy</string>
     <string name="key_descr_paste">I-paste</string>
     <string name="key_descr_cut">Ilipat</string>
