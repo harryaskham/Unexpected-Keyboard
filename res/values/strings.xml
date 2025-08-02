@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">Unexpected Keyboard</string>
-    <string name="app_name_debug">Unexpected Keyboard (Debug)</string>
-    <string name="short_description">Lightweight and privacy-conscious virtual keyboard for Android.</string>
-    <string name="store_description">The main feature is that you can type more characters by swiping the keys towards the corners.\n\nThis application was originally designed for programmers using Termux.\nNow perfect for everyday use.\n\nThis application contains no ads, doesn\'t make any network requests and is Open Source.</string>
+    <string name="app_name_release">Unexpected Keyboard Fork</string>
+    <string name="app_name_debug">Unexpected Keyboard Fork (Debug)</string>
+    <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string>
+    <string name="short_description">Enhanced fork of the lightweight and privacy-conscious virtual keyboard for Android.</string>
+    <string name="store_description">Enhanced fork with additional features:\n• Directory-based layout loading from storage\n• Floating keyboard mode\n• Nord colorscheme\n\nThe main feature is that you can type more characters by swiping the keys towards the corners.\n\nThis application was originally designed for programmers using Termux.\nNow perfect for everyday use.\n\nThis application contains no ads, doesn\'t make any network requests and is Open Source.</string>
     <string name="pref_portrait">In portrait mode</string>
     <string name="pref_portrait_unfolded">In portrait mode unfolded</string>
     <string name="pref_landscape">In landscape mode</string>
@@ -73,6 +74,7 @@
     <string name="pref_theme_e_monetlight">Monet (Light)</string>
     <string name="pref_theme_e_monetdark">Monet (Dark)</string>
     <string name="pref_theme_e_rosepine">Rosé Pine</string>
+    <string name="pref_theme_e_nord">Nord</string>
     <string name="pref_swipe_dist_e_very_short">Very short</string>
     <string name="pref_swipe_dist_e_short">Short</string>
     <string name="pref_swipe_dist_e_default">Normal</string>
@@ -105,6 +107,7 @@
     <string name="key_descr_switch_greekmath">Greek &amp; math symbols</string>
     <string name="key_descr_change_method">Switch keyboard</string>
     <string name="key_descr_voice_typing">Voice typing</string>
+    <string name="key_descr_toggle_floating">Toggle floating keyboard</string>
     <string name="key_descr_copy">Copy</string>
     <string name="key_descr_paste">Paste</string>
     <string name="key_descr_cut">Cut</string>

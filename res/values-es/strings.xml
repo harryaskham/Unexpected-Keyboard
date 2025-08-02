@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name_release">Unexpected Keyboard</string>
     <string name="app_name_debug">Unexpected Keyboard (debug)</string>
+    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
     <string name="short_description">Un teclado virtual ligero para Android consciente de su privacidad.</string>
     <string name="store_description">La característica principal es que hay acceso a más caractéres deslizando hacia las esquinas de las teclas.\n\nEsta aplicación fue originalmente diseñada para programadores que usaran Termux.\nAhora es perfecta para uso cotidiano.\n\nLa misma no contiene ningún anuncio/publicidad, no realiza peticiones de red y es de Fuente Abierta.</string>
     <string name="pref_portrait">En modo vertical</string>
@@ -49,7 +50,7 @@
     <string name="pref_switch_input_immediate_summary">Comportamiento de la tecla para cambiar diseño</string>
     <string name="pref_vibrate_custom">Vibración personalizada</string>
     <string name="pref_vibrate_duration_title">Intensidad de vibración</string>
-    <!-- <string name="pref_number_entry_title">Layout when typing numbers, dates and phone numbers</string> -->
+    <!-- <string name="pref_number_entry_title">Layout when typing numbers, dates, and phone numbers</string> -->
     <!-- <string name="pref_number_entry_layout_pin">PIN Entry</string> -->
     <!-- <string name="pref_number_entry_layout_number">Number pane</string> -->
     <!-- <string name="pref_number_entry_layout_normal">Use the main layout</string> -->
@@ -73,6 +74,7 @@
     <string name="pref_theme_e_monetlight">Monet (claro)</string>
     <string name="pref_theme_e_monetdark">Monet (oscuro)</string>
     <!-- <string name="pref_theme_e_rosepine">Rosé Pine</string> -->
+    <!-- <string name="pref_theme_e_nord">Nord</string> -->
     <string name="pref_swipe_dist_e_very_short">Muy corta</string>
     <string name="pref_swipe_dist_e_short">Corta</string>
     <string name="pref_swipe_dist_e_default">Normal</string>
@@ -105,6 +107,7 @@
     <string name="key_descr_switch_greekmath">Símb. griegos y matemáticos</string>
     <string name="key_descr_change_method">Cambiar teclado</string>
     <string name="key_descr_voice_typing">Dictado por voz</string>
+    <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
     <string name="key_descr_copy">Copiar</string>
     <string name="key_descr_paste">Pegar</string>
     <string name="key_descr_cut">Cortar</string>

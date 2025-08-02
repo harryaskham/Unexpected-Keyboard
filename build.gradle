@@ -6,14 +6,15 @@ dependencies {
   implementation "androidx.window:window-java:1.3.0"
   implementation "androidx.core:core:1.16.0"
   testImplementation "junit:junit:4.13.2"
+  testImplementation "org.mockito:mockito-core:4.6.1"
 }
 
 android {
-  namespace 'juloo.keyboard2'
+  namespace 'juloo.keyboard2.fork'
   compileSdk 35
 
   defaultConfig {
-    applicationId "juloo.keyboard2"
+    applicationId "juloo.keyboard2.fork"
     minSdk 21
     targetSdkVersion 35
     versionCode 50
@@ -23,13 +24,13 @@ android {
   sourceSets {
     main {
       manifest.srcFile 'AndroidManifest.xml'
-      java.srcDirs = ['srcs/juloo.keyboard2']
+      java.srcDirs = ['srcs/juloo.keyboard2.fork']
       res.srcDirs = ['res', 'build/generated-resources']
       assets.srcDirs = ['assets']
     }
 
     test {
-      java.srcDirs = ['test']
+      java.srcDirs = ['test/juloo.keyboard2.fork']
     }
   }
 
@@ -150,7 +151,7 @@ tasks.register('syncTranslations') {
 }
 
 tasks.register('compileComposeSequences') {
-  def out = "srcs/juloo.keyboard2/ComposeKeyData.java"
+  def out = "srcs/juloo.keyboard2.fork/ComposeKeyData.java"
   println "\nGenerating ${out}"
   exec {
     def sequences = new File(projectDir, "srcs/compose").listFiles().findAll {

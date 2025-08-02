@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name_release">Klávesnice Unexpected</string>
     <string name="app_name_debug">Klávesnice Unexpected (pro ladění)</string>
+    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
     <string name="short_description">Nenáročná virtuální klávesnice pro vývojáře.</string>
     <string name="store_description">Hlavní funkcí je možnost psát více znaků posunutím kláves směrem k rohům.\n\nTato aplikace byla původně navržena pro programátory používající Termux.\nNyní je ideální pro každodenní použití.\n\nTato aplikace neobsahuje žádné reklamy, nevyužívá připojení k síti a je Open Source.</string>
     <string name="pref_portrait">V režimu na výšku</string>
@@ -49,7 +50,7 @@
     <string name="pref_switch_input_immediate_summary">Jak bude klávesa pro přepnutí klávesnice reagovat</string>
     <string name="pref_vibrate_custom">Vlastní vibrace</string>
     <string name="pref_vibrate_duration_title">Síla vibrace</string>
-    <!-- <string name="pref_number_entry_title">Layout when typing numbers, dates and phone numbers</string> -->
+    <!-- <string name="pref_number_entry_title">Layout when typing numbers, dates, and phone numbers</string> -->
     <!-- <string name="pref_number_entry_layout_pin">PIN Entry</string> -->
     <!-- <string name="pref_number_entry_layout_number">Number pane</string> -->
     <!-- <string name="pref_number_entry_layout_normal">Use the main layout</string> -->
@@ -73,6 +74,7 @@
     <string name="pref_theme_e_monetlight">Monet (Světlý)</string>
     <string name="pref_theme_e_monetdark">Monet (Tmavý)</string>
     <string name="pref_theme_e_rosepine">Růžová borovice</string>
+    <!-- <string name="pref_theme_e_nord">Nord</string> -->
     <string name="pref_swipe_dist_e_very_short">Velmi krátká</string>
     <string name="pref_swipe_dist_e_short">Krátká</string>
     <string name="pref_swipe_dist_e_default">Běžná</string>
@@ -105,6 +107,7 @@
     <string name="key_descr_switch_greekmath">Řecké a matematické symboly</string>
     <string name="key_descr_change_method">Přepnout klávesnici</string>
     <string name="key_descr_voice_typing">Hlasové zadávání</string>
+    <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
     <string name="key_descr_copy">Kopírovat</string>
     <string name="key_descr_paste">Vložit</string>
     <string name="key_descr_cut">Vyjmout</string>

@@ -1,3 +1,8 @@
+Enhanced fork with additional features:
+• Directory-based layout loading from storage
+• Floating keyboard mode
+• Nord colorscheme
+
 The main feature is that you can type more characters by swiping the keys towards the corners.
 
 This application was originally designed for programmers using Termux.

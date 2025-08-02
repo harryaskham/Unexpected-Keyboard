@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name_release">Unexpected Keyboard</string>
     <string name="app_name_debug">Unexpected Keyboard (debug)</string>
+    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
     <string name="short_description">Lekka i dbająca o prywatność klawiatura wirtualna dla Androida.</string>
     <string name="store_description">Główną cechą tej klawiatury jest możliwość wprowadzania więcej znaków poprzez przesuwanie po klawiszach do ich rogów.\n\nTa aplikacja została pierwotnie zaprojektowana z myślą o programistach używających Termuxa.\nObecnie nadaje się doskonale do codziennego użytku.\n\nAplikacja nie zawiera reklam, nie żąda dostępu do internetu, a jej kod źródłowy jest dostępny publicznie.</string>
     <string name="pref_portrait">W widoku pionowym</string>
@@ -49,7 +50,7 @@
     <string name="pref_switch_input_immediate_summary">Działanie klawisza przełączającego klawiaturę</string>
     <string name="pref_vibrate_custom">Własna wibracja</string>
     <string name="pref_vibrate_duration_title">Intensywność wibracji</string>
-    <!-- <string name="pref_number_entry_title">Layout when typing numbers, dates and phone numbers</string> -->
+    <!-- <string name="pref_number_entry_title">Layout when typing numbers, dates, and phone numbers</string> -->
     <!-- <string name="pref_number_entry_layout_pin">PIN Entry</string> -->
     <!-- <string name="pref_number_entry_layout_number">Number pane</string> -->
     <!-- <string name="pref_number_entry_layout_normal">Use the main layout</string> -->
@@ -73,6 +74,7 @@
     <string name="pref_theme_e_monetlight">Monet (Jasny)</string>
     <string name="pref_theme_e_monetdark">Monet (Ciemny)</string>
     <string name="pref_theme_e_rosepine">Rosé Pine</string>
+    <!-- <string name="pref_theme_e_nord">Nord</string> -->
     <string name="pref_swipe_dist_e_very_short">Bardzo mała</string>
     <string name="pref_swipe_dist_e_short">Mała</string>
     <string name="pref_swipe_dist_e_default">Normalna</string>
@@ -105,6 +107,7 @@
     <string name="key_descr_switch_greekmath">Symbole greckie i matematyczne</string>
     <string name="key_descr_change_method">Przełącz klawiaturę</string>
     <string name="key_descr_voice_typing">Pisanie głosowe</string>
+    <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
     <string name="key_descr_copy">Kopiuj</string>
     <string name="key_descr_paste">Wklej</string>
     <string name="key_descr_cut">Wytnij</string>

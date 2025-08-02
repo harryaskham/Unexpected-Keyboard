@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name_release">Teclado Unexpected</string>
     <string name="app_name_debug">Teclado Unexpected (Depuração)</string>
+    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
     <string name="short_description">Um teclado virtual leve para desenvolvedores.</string>
     <string name="store_description">A principal característica é que você pode digitar mais caracteres deslizando as teclas para os cantos.\n\nO app foi criado originalmente para desenvolvedores que usam Termux.\nAgora aperfeiçoado para o uso diário.\n\nEste aplicativo não contém anúncios, não faz nenhuma solicitação de rede e é Open Source.</string>
     <string name="pref_portrait">No modo retrato</string>
@@ -49,7 +50,7 @@
     <string name="pref_switch_input_immediate_summary">Comportamento da tecla de troca de teclado</string>
     <string name="pref_vibrate_custom">Vibração personalizada</string>
     <string name="pref_vibrate_duration_title">Intensidade da vibração</string>
-    <!-- <string name="pref_number_entry_title">Layout when typing numbers, dates and phone numbers</string> -->
+    <!-- <string name="pref_number_entry_title">Layout when typing numbers, dates, and phone numbers</string> -->
     <!-- <string name="pref_number_entry_layout_pin">PIN Entry</string> -->
     <!-- <string name="pref_number_entry_layout_number">Number pane</string> -->
     <!-- <string name="pref_number_entry_layout_normal">Use the main layout</string> -->
@@ -73,6 +74,7 @@
     <string name="pref_theme_e_monetlight">Monet (Claro)</string>
     <string name="pref_theme_e_monetdark">Monet (Escuro)</string>
     <string name="pref_theme_e_rosepine">Rosé Pine</string>
+    <!-- <string name="pref_theme_e_nord">Nord</string> -->
     <string name="pref_swipe_dist_e_very_short">Bem curta</string>
     <string name="pref_swipe_dist_e_short">Curta</string>
     <string name="pref_swipe_dist_e_default">Normal</string>
@@ -105,6 +107,7 @@
     <string name="key_descr_switch_greekmath">Grego e símbolos matemáticos</string>
     <string name="key_descr_change_method">Trocar de teclado</string>
     <string name="key_descr_voice_typing">Digitação por voz</string>
+    <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
     <string name="key_descr_copy">Copiar</string>
     <string name="key_descr_paste">Colar</string>
     <string name="key_descr_cut">Recortar</string>

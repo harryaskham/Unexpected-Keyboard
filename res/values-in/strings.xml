@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name_release">Unexpected Keyboard</string>
     <string name="app_name_debug">Unexpected Keyboard (Debug)</string>
+    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
     <string name="short_description">Keyboard virtual yang ringan dan sadar privasi untuk Android.</string>
     <string name="store_description">Fitur utamanya adalah Anda dapat mengetik lebih banyak karakter dengan menggeser tombol ke arah sudut.\n\nAplikasi ini awalnya dirancang untuk programmer yang menggunakan Termux.\nSekarang sempurna untuk penggunaan sehari-hari.\n\nAplikasi ini tidak berisi iklan, tidak membuat permintaan jaringan dan Open Source.</string>
     <string name="pref_portrait">Dalam mode potret</string>
@@ -49,7 +50,7 @@
     <string name="pref_switch_input_immediate_summary">Perilaku tombol penggantian keyboard</string>
     <string name="pref_vibrate_custom">Getaran kustom</string>
     <string name="pref_vibrate_duration_title">Intensitas getaran</string>
-    <!-- <string name="pref_number_entry_title">Layout when typing numbers, dates and phone numbers</string> -->
+    <!-- <string name="pref_number_entry_title">Layout when typing numbers, dates, and phone numbers</string> -->
     <!-- <string name="pref_number_entry_layout_pin">PIN Entry</string> -->
     <!-- <string name="pref_number_entry_layout_number">Number pane</string> -->
     <!-- <string name="pref_number_entry_layout_normal">Use the main layout</string> -->
@@ -73,6 +74,7 @@
     <string name="pref_theme_e_monetlight">Monet (Terang)</string>
     <string name="pref_theme_e_monetdark">Monet (Gelap)</string>
     <string name="pref_theme_e_rosepine">Rosé Pine</string>
+    <!-- <string name="pref_theme_e_nord">Nord</string> -->
     <string name="pref_swipe_dist_e_very_short">Sangat pendek</string>
     <string name="pref_swipe_dist_e_short">Pendek</string>
     <string name="pref_swipe_dist_e_default">Normal</string>
@@ -105,6 +107,7 @@
     <string name="key_descr_switch_greekmath">Greek &amp; Simbol matematika</string>
     <string name="key_descr_change_method">Beralih keyboard</string>
     <string name="key_descr_voice_typing">Pengetikan suara</string>
+    <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
     <string name="key_descr_copy">Salin</string>
     <string name="key_descr_paste">Tempel</string>
     <string name="key_descr_cut">Potong</string>

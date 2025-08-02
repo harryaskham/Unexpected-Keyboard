@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name_release">Unexpected Keyboard</string>
     <string name="app_name_debug">Unexpected Keyboard (debug)</string>
+    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
     <string name="short_description">Clavier virtuel léger et respectueux de la vie privée pour Android.</string>
     <string name="store_description">La fonctionnalité principale est l\'accès rapide à plus de caractères en balayant les touches vers les coins.\n\nCette application a été conçue à l\'origine pour les programmeurs utilisant Termux.\nElle est maintenant parfaite pour une utilisation quotidienne.\n\nCette application ne contient pas de publicité, n\'accède pas au réseau et est Open Source.</string>
     <string name="pref_portrait">En mode portrait</string>
@@ -73,6 +74,7 @@
     <string name="pref_theme_e_monetlight">Monet (Clair)</string>
     <string name="pref_theme_e_monetdark">Monet (Sombre)</string>
     <string name="pref_theme_e_rosepine">Rosé Pine</string>
+    <!-- <string name="pref_theme_e_nord">Nord</string> -->
     <string name="pref_swipe_dist_e_very_short">Très courte</string>
     <string name="pref_swipe_dist_e_short">Courte</string>
     <string name="pref_swipe_dist_e_default">Normale</string>
@@ -105,6 +107,7 @@
     <string name="key_descr_switch_greekmath">Symboles mathématiques</string>
     <string name="key_descr_change_method">Changer de clavier</string>
     <string name="key_descr_voice_typing">Saisie vocale</string>
+    <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
     <string name="key_descr_copy">Copier</string>
     <string name="key_descr_paste">Coller</string>
     <string name="key_descr_cut">Couper</string>
