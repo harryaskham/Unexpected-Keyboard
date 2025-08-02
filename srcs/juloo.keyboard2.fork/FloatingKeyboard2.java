@@ -229,6 +229,22 @@ public class FloatingKeyboard2 extends InputMethodService
     }
   }
 
+  @Override
+  public void onFinishInputView(boolean finishingInput)
+  {
+    super.onFinishInputView(finishingInput);
+    // Hide floating keyboard when input view is finished
+    removeFloatingKeyboard();
+  }
+
+  @Override
+  public void onFinishInput()
+  {
+    super.onFinishInput();
+    // Also hide when input is completely finished
+    removeFloatingKeyboard();
+  }
+
   private void refresh_action_label(EditorInfo info)
   {
     if (info.actionLabel != null)
@@ -459,6 +475,20 @@ public class FloatingKeyboard2 extends InputMethodService
     _config.floatingKeyboardHeightPercent = heightPercent;
     
     showDebugToast("Height updated to " + heightPercent + "%");
+  }
+
+  private void saveFloatingKeyboardPosition() {
+    if (_floatingLayoutParams != null) {
+      SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(this);
+      SharedPreferences.Editor editor = prefs.edit();
+      editor.putInt("floating_keyboard_x", _floatingLayoutParams.x);
+      editor.putInt("floating_keyboard_y", _floatingLayoutParams.y);
+      editor.apply();
+      
+      if (isDebugModeEnabled()) {
+        showDebugToast("Position saved: " + _floatingLayoutParams.x + "," + _floatingLayoutParams.y);
+      }
+    }
   }
   
   private void refreshFloatingKeyboard() {
@@ -692,9 +722,10 @@ public class FloatingKeyboard2 extends InputMethodService
       // Create resize handle after keyboard is added
       container.createResizeHandle();
       
-      // Set up window parameters for overlay - try different flags for pass-through
+      // Set up window parameters for overlay - enable pass-through for gaps
       int windowFlags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | 
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                        WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH;
       
       android.util.Log.d("FloatingKeyboard", "Using window flags: " + windowFlags);
       
@@ -706,8 +737,11 @@ public class FloatingKeyboard2 extends InputMethodService
           PixelFormat.TRANSLUCENT);
       
       params.gravity = Gravity.TOP | Gravity.LEFT;
-      params.x = 100;
-      params.y = 300;
+      
+      // Restore saved position or use defaults
+      SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(this);
+      params.x = prefs.getInt("floating_keyboard_x", 100);
+      params.y = prefs.getInt("floating_keyboard_y", 300);
       
       _windowManager.addView(container, params);
       _floatingLayoutParams = params;
@@ -797,6 +831,8 @@ public class FloatingKeyboard2 extends InputMethodService
         case MotionEvent.ACTION_CANCEL:
           // Restore original handle color
           handleView.setBackground(originalDrawable);
+          // Save final position
+          saveFloatingKeyboardPosition();
           showDebugToast("Drag ended");
           return true;
       }
@@ -913,7 +949,7 @@ public class FloatingKeyboard2 extends InputMethodService
               // Calculate width percentage based on horizontal movement from initial values
               // Drag right = bigger (positive deltaX increases width)
               // Drag left = smaller (negative deltaX decreases width)
-              float widthChange = deltaX / 600.0f; // Adjust sensitivity (600px = 50% change)
+              float widthChange = deltaX / 1200.0f; // Reduced sensitivity (1200px = 50% change)
               float newWidthScale = (initialWidthPercent / 100.0f) + widthChange;
               newWidthScale = Math.max(0.5f, Math.min(1.0f, newWidthScale)); // Clamp 50%-100%
               int newWidthPercent = (int)(newWidthScale * 100);
@@ -921,7 +957,7 @@ public class FloatingKeyboard2 extends InputMethodService
               // Calculate height percentage based on vertical movement from initial values
               // Drag up = bigger (negative deltaY increases height)
               // Drag down = smaller (positive deltaY decreases height)
-              float heightChange = -deltaY / 400.0f; // Invert and adjust sensitivity (400px = full range)
+              float heightChange = -deltaY / 800.0f; // Reduced sensitivity (800px = full range)
               
               // Get the max height for current orientation
               int maxHeight = _config.orientation_landscape ? 50 : 50; // Same max as settings
@@ -938,7 +974,7 @@ public class FloatingKeyboard2 extends InputMethodService
               // Adjust window Y position to make keyboard grow upward from resize handle
               // When dragging up (negative deltaY), keyboard gets taller and should move up
               // When dragging down (positive deltaY), keyboard gets shorter and should move down
-              _floatingLayoutParams.y = initialWindowY + (int)(deltaY * 0.5f); // Use half the drag distance for smoother feel
+              _floatingLayoutParams.y = initialWindowY + (int)(deltaY * 0.25f); // Reduced sensitivity to match resize
               _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
               
               // Force keyboard redraw with new dimensions
@@ -955,6 +991,8 @@ public class FloatingKeyboard2 extends InputMethodService
             // Restore original handle color
             handleView.setBackground(originalDrawable);
             isResizing = false;
+            // Save final position after resize
+            saveFloatingKeyboardPosition();
             android.util.Log.d("FloatingKeyboard", "Resize end, final scale: " + currentScale);
             showDebugToast("Resize ended - final scale: " + String.format("%.1f", currentScale) + "x (applied: " + String.format("%.1f", ResizableFloatingContainer.this.getScaleX()) + "x)");
             return true;
@@ -967,6 +1005,21 @@ public class FloatingKeyboard2 extends InputMethodService
     @Override  
     public boolean onTouchEvent(MotionEvent event) {
       android.util.Log.d("FloatingKeyboard", "Container onTouchEvent: action=" + event.getAction() + " x=" + event.getX() + " y=" + event.getY() + " scale=" + getScaleX());
+      
+      // Check if touch hits a key before processing - for pass-through
+      if (event.getAction() == MotionEvent.ACTION_DOWN && _floatingKeyboardView != null) {
+        // Convert container coordinates to keyboard view coordinates
+        float keyboardX = event.getX();
+        float keyboardY = event.getY() - 30; // Account for drag handle margin
+        
+        // Check if touch hits a key on the keyboard
+        KeyboardData.Key key = ((Keyboard2View)_floatingKeyboardView).getKeyAtPosition(keyboardX, keyboardY);
+        if (key == null) {
+          // Touch hit a gap, pass through to app behind
+          android.util.Log.d("FloatingKeyboard", "Touch on gap - passing through");
+          return false;
+        }
+      }
       
       // Transform touch coordinates based on current scale for keyboard interaction
       if (currentScale != 1.0f && event.getAction() != MotionEvent.ACTION_OUTSIDE) {

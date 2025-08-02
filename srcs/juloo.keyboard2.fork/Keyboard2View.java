@@ -240,7 +240,7 @@ public class Keyboard2View extends View
     return null;
   }
 
-  private KeyboardData.Key getKeyAtPosition(float tx, float ty)
+  public KeyboardData.Key getKeyAtPosition(float tx, float ty)
   {
     KeyboardData.Row row = getRowAtPosition(ty);
     float x = _marginLeft;
