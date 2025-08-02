@@ -1,4 +1,6 @@
-# Unexpected Keyboard (FORKED)
+# Unexpected Keyboard (Floating Fork)
+
+*(this fork was entirely undertaken by Claude Code as part of my testing of CC - after a few false starts, humblingly, all works well enough for me to daily-drive)*
 
 Personal fork of Unexpected Keyboard with additional features:
 
