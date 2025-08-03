@@ -259,6 +259,31 @@ public class Keyboard2View extends View
     return null;
   }
 
+  public KeyboardData getCurrentKeyboard()
+  {
+    return _keyboard;
+  }
+
+  public float getKeyWidth()
+  {
+    return _keyWidth;
+  }
+
+  public float getMarginLeft()
+  {
+    return _marginLeft;
+  }
+
+  public float getMarginTop()
+  {
+    return _config.marginTop;
+  }
+
+  public Theme.Computed getThemeComputed()
+  {
+    return _tc;
+  }
+
   private void vibrate()
   {
     VibratorCompat.vibrate(this, _config);

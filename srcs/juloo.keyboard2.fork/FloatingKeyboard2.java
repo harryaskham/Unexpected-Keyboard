@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.PixelFormat;
+import android.graphics.Rect;
+import android.graphics.Region;
 import android.graphics.drawable.GradientDrawable;
 import android.inputmethodservice.InputMethodService;
 import android.net.Uri;
@@ -44,6 +46,10 @@ public class FloatingKeyboard2 extends InputMethodService
   private View _floatingKeyboardView;
   private WindowManager.LayoutParams _floatingLayoutParams;
   private ViewGroup _floatingContainer;
+  
+  // Separate window for toggle button to remain touchable in passthrough mode
+  private View _toggleButtonWindow;
+  private WindowManager.LayoutParams _toggleLayoutParams;
 
   KeyboardData current_layout_unmodified()
   {
@@ -706,7 +712,7 @@ public class FloatingKeyboard2 extends InputMethodService
       // Create drag handle
       View dragHandle = new View(this);
       GradientDrawable handleDrawable = new GradientDrawable();
-      handleDrawable.setColor(0xFF4C566A);
+      handleDrawable.setColor(0xFF5E81AC); // Nord blue - proper inactive color
       handleDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density);
       dragHandle.setBackground(handleDrawable);
       
@@ -722,10 +728,17 @@ public class FloatingKeyboard2 extends InputMethodService
       // Create resize handle after keyboard is added
       container.createResizeHandle();
       
+      // Create passthrough toggle button
+      container.createPassthroughToggle();
+      
       // Set up window parameters for overlay - enable pass-through for gaps
       int windowFlags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | 
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-                        WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH;
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+      
+      // Try to enable split-touch for better gap handling
+      if (VERSION.SDK_INT >= 11) {
+        windowFlags |= WindowManager.LayoutParams.FLAG_SPLIT_TOUCH;
+      }
       
       android.util.Log.d("FloatingKeyboard", "Using window flags: " + windowFlags);
       
@@ -770,6 +783,9 @@ public class FloatingKeyboard2 extends InputMethodService
   private void removeFloatingKeyboard() {
     if (_floatingKeyboardActive && _floatingContainer != null) {
       try {
+        // Clean up toggle button window if it exists
+        removeToggleButtonWindow();
+        
         _windowManager.removeView(_floatingContainer);
       } catch (Exception e) {
         Logs.exn("Failed to remove floating keyboard", e);
@@ -844,6 +860,7 @@ public class FloatingKeyboard2 extends InputMethodService
 
   private class ResizableFloatingContainer extends FrameLayout {
     private View resizeHandle;
+    private View passthroughToggle;
     private WindowManager windowManager;
     private WindowManager.LayoutParams layoutParams;
     private float initialScale = 1.0f;
@@ -853,6 +870,7 @@ public class FloatingKeyboard2 extends InputMethodService
     private int initialWidth, initialHeight;
     private int initialWidthPercent, initialHeightPercent;
     private int initialWindowY;
+    private boolean passthroughMode = false;
 
     public ResizableFloatingContainer(Context context) {
       super(context);
@@ -872,7 +890,7 @@ public class FloatingKeyboard2 extends InputMethodService
       resizeHandle = new View(getContext());
       
       GradientDrawable resizeDrawable = new GradientDrawable();
-      resizeDrawable.setColor(0xFF4C566A); // Same Nord color as drag handle
+      resizeDrawable.setColor(0xFF5E81AC); // Nord blue - same inactive color as drag handle
       resizeDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density); // Same radius as drag handle
       resizeHandle.setBackground(resizeDrawable);
       
@@ -894,6 +912,34 @@ public class FloatingKeyboard2 extends InputMethodService
       resizeHandle.setVisibility(View.VISIBLE);
       resizeHandle.bringToFront();
       resizeHandle.setElevation(20.0f);
+    }
+
+    public void createPassthroughToggle() {
+      // Create passthrough toggle button styled like the other handles
+      passthroughToggle = new View(getContext());
+      
+      GradientDrawable toggleDrawable = new GradientDrawable();
+      toggleDrawable.setColor(0xFF5E81AC); // Nord blue - same inactive color as other handles
+      toggleDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density); // Same radius as other handles
+      passthroughToggle.setBackground(toggleDrawable);
+      
+      int handleHeight = 24; // Same height as other handles
+      int screenWidth = getResources().getDisplayMetrics().widthPixels;
+      int handleWidth = (int) (screenWidth * 0.15f); // Slightly smaller than other handles for discreteness
+      
+      // Position on top-left, same level as other handles
+      FrameLayout.LayoutParams handleParams = new FrameLayout.LayoutParams(handleWidth, handleHeight);
+      handleParams.gravity = Gravity.TOP | Gravity.LEFT;
+      handleParams.setMargins(8, 3, 0, 0); // Same top margin as other handles, small left margin
+      
+      passthroughToggle.setOnTouchListener(new PassthroughToggleTouchListener(passthroughToggle));
+      addView(passthroughToggle, handleParams);
+      
+      // Initially hidden since we start in normal mode
+      passthroughToggle.setVisibility(View.GONE);
+      passthroughToggle.setElevation(20.0f);
+      
+      android.util.Log.d("FloatingKeyboard", "Passthrough toggle created and added - Width: " + handleWidth + " Height: " + handleHeight);
       
       // Test if handle gets layout correctly
       resizeHandle.post(new Runnable() {
@@ -902,6 +948,46 @@ public class FloatingKeyboard2 extends InputMethodService
           android.util.Log.d("FloatingKeyboard", "Resize handle final position: " + resizeHandle.getLeft() + "," + resizeHandle.getTop() + " to " + resizeHandle.getRight() + "," + resizeHandle.getBottom() + " visibility=" + resizeHandle.getVisibility());
         }
       });
+    }
+
+    private class PassthroughToggleTouchListener implements View.OnTouchListener {
+      private View handleView;
+      private GradientDrawable originalDrawable;
+
+      public PassthroughToggleTouchListener(View handle) {
+        this.handleView = handle;
+        this.originalDrawable = (GradientDrawable) handle.getBackground();
+      }
+
+      @Override
+      public boolean onTouch(View v, MotionEvent event) {
+        android.util.Log.d("FloatingKeyboard", "PassthroughToggleTouchListener.onTouch: " + event.getAction());
+        
+        switch (event.getAction()) {
+          case MotionEvent.ACTION_DOWN:
+            // Change handle color when touched
+            GradientDrawable activeDrawable = (GradientDrawable) originalDrawable.getConstantState().newDrawable();
+            activeDrawable.setColor(0xFFD8DEE9); // Light gray when pressed
+            handleView.setBackground(activeDrawable);
+            return true;
+
+          case MotionEvent.ACTION_UP:
+            // Restore original handle color
+            handleView.setBackground(originalDrawable);
+            
+            // Toggle back to normal mode
+            exitPassthroughMode();
+            showDebugToast("Keyboard touches re-enabled");
+            return true;
+            
+          case MotionEvent.ACTION_CANCEL:
+            // Restore original handle color
+            handleView.setBackground(originalDrawable);
+            return true;
+        }
+        
+        return false;
+      }
     }
 
     private class ResizeTouchListener implements View.OnTouchListener {
@@ -1002,49 +1088,249 @@ public class FloatingKeyboard2 extends InputMethodService
       }
     }
 
-    @Override  
-    public boolean onTouchEvent(MotionEvent event) {
-      android.util.Log.d("FloatingKeyboard", "Container onTouchEvent: action=" + event.getAction() + " x=" + event.getX() + " y=" + event.getY() + " scale=" + getScaleX());
-      
-      // Check if touch hits a key before processing - for pass-through
-      if (event.getAction() == MotionEvent.ACTION_DOWN && _floatingKeyboardView != null) {
-        // Convert container coordinates to keyboard view coordinates
-        float keyboardX = event.getX();
-        float keyboardY = event.getY() - 30; // Account for drag handle margin
+    public void setTouchableRegionEmpty() {
+      // touchableRegion is not available in older APIs, so we'll use a different approach
+      android.util.Log.d("FloatingKeyboard", "Cannot set touchable region - using view-level pass-through");
+    }
+
+    public void updateTouchableRegionForKeys() {
+      // Since touchableRegion API is not available, we rely on view-level touch handling
+      android.util.Log.d("FloatingKeyboard", "Cannot use touchable region - relying on dispatchTouchEvent");
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+      super.onLayout(changed, left, top, right, bottom);
+      if (changed && getWidth() > 0 && getHeight() > 0) {
+        // Update touchable region after layout
+        post(new Runnable() {
+          @Override
+          public void run() {
+            updateTouchableRegionForKeys();
+          }
+        });
+      }
+    }
+
+    private void enterPassthroughMode() {
+      if (!passthroughMode && _floatingLayoutParams != null && windowManager != null) {
+        passthroughMode = true;
         
-        // Check if touch hits a key on the keyboard
-        KeyboardData.Key key = ((Keyboard2View)_floatingKeyboardView).getKeyAtPosition(keyboardX, keyboardY);
-        if (key == null) {
-          // Touch hit a gap, pass through to app behind
-          android.util.Log.d("FloatingKeyboard", "Touch on gap - passing through");
-          return false;
+        try {
+          // Make the entire main window not touchable
+          _floatingLayoutParams.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+          windowManager.updateViewLayout(this, _floatingLayoutParams);
+          
+          // Dim the keyboard to show it's in passthrough mode
+          if (_floatingKeyboardView != null) {
+            _floatingKeyboardView.setAlpha(0.3f);
+          }
+          
+          // Hide the toggle button from the main window
+          if (passthroughToggle != null) {
+            passthroughToggle.setVisibility(View.GONE);
+          }
+          
+          // Create a separate touchable window for the toggle button
+          createToggleButtonWindow();
+          
+          android.util.Log.d("FloatingKeyboard", "Entered passthrough mode - main window not touchable, separate toggle window created");
+        } catch (Exception e) {
+          android.util.Log.e("FloatingKeyboard", "Error entering passthrough mode: " + e.getMessage());
+        }
+      }
+    }
+
+    public void exitPassthroughMode() {
+      if (passthroughMode && _floatingLayoutParams != null && windowManager != null) {
+        passthroughMode = false;
+        
+        try {
+          // Remove the separate toggle button window
+          removeToggleButtonWindow();
+          
+          // Restore main window touchability
+          _floatingLayoutParams.flags &= ~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+          windowManager.updateViewLayout(this, _floatingLayoutParams);
+          
+          // Restore keyboard full opacity
+          if (_floatingKeyboardView != null) {
+            _floatingKeyboardView.setAlpha(1.0f);
+          }
+          
+          android.util.Log.d("FloatingKeyboard", "Exited passthrough mode - main window touchable, keyboard restored, toggle window removed");
+        } catch (Exception e) {
+          android.util.Log.e("FloatingKeyboard", "Error exiting passthrough mode: " + e.getMessage());
+        }
+      }
+    }
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent event) {
+      if (event.getAction() == MotionEvent.ACTION_DOWN && _floatingKeyboardView != null) {
+        float containerX = event.getX();
+        float containerY = event.getY();
+        
+        android.util.Log.d("FloatingKeyboard", "Container intercepting touch: x=" + containerX + " y=" + containerY + " passthrough=" + passthroughMode);
+        
+        // Always allow handle touches through
+        if (containerY <= 30) {
+          android.util.Log.d("FloatingKeyboard", "Handle area - allowing normal processing");
+          return false; // Don't intercept, let handles work
+        }
+        
+        if (passthroughMode) {
+          // In passthrough mode, check if this is in the keyboard area and pass it through
+          float keyboardX = containerX - _floatingKeyboardView.getLeft();
+          float keyboardY = containerY - _floatingKeyboardView.getTop();
+          
+          if (keyboardX >= 0 && keyboardX < _floatingKeyboardView.getWidth() && 
+              keyboardY >= 0 && keyboardY < _floatingKeyboardView.getHeight()) {
+            // This is a keyboard area touch in passthrough mode - don't handle it at all
+            android.util.Log.d("FloatingKeyboard", "Keyboard touch in passthrough mode - allowing passthrough");
+            return false; // Let it pass through completely
+          }
+        } else {
+          // Normal mode - check for gap touches to enter passthrough mode
+          float keyboardX = containerX - _floatingKeyboardView.getLeft();
+          float keyboardY = containerY - _floatingKeyboardView.getTop();
+          
+          if (keyboardX >= 0 && keyboardX < _floatingKeyboardView.getWidth() && 
+              keyboardY >= 0 && keyboardY < _floatingKeyboardView.getHeight()) {
+            
+            KeyboardData.Key key = ((Keyboard2View)_floatingKeyboardView).getKeyAtPosition(keyboardX, keyboardY);
+            if (key == null) {
+              // This is a gap touch - enter passthrough mode
+              android.util.Log.d("FloatingKeyboard", "Gap touch detected - entering passthrough mode");
+              enterPassthroughMode();
+              showDebugToast("Passthrough mode enabled - tap top-left button to re-enable keyboard");
+              return true; // Intercept this touch and consume it
+            } else {
+              android.util.Log.d("FloatingKeyboard", "Key touch detected - normal processing");
+            }
+          }
         }
       }
       
-      // Transform touch coordinates based on current scale for keyboard interaction
-      if (currentScale != 1.0f && event.getAction() != MotionEvent.ACTION_OUTSIDE) {
-        // Create scaled copy of the event
-        float scaledX = event.getX() / currentScale;
-        float scaledY = event.getY() / currentScale;
+      return false; // Don't intercept by default
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+      if (passthroughMode && event.getAction() == MotionEvent.ACTION_DOWN && _floatingKeyboardView != null) {
+        float containerX = event.getX();
+        float containerY = event.getY();
         
-        // Log transformation for debugging
-        android.util.Log.d("FloatingKeyboard", "Touch transform: (" + event.getX() + "," + event.getY() + ") -> (" + scaledX + "," + scaledY + ") at scale " + currentScale);
+        // Always allow handle touches through
+        if (containerY <= 30) {
+          return super.onTouchEvent(event); // Let handles work normally
+        }
         
-        // Let the scaled event propagate to children
-        MotionEvent scaledEvent = MotionEvent.obtain(event);
-        scaledEvent.setLocation(scaledX, scaledY);
-        boolean handled = super.onTouchEvent(scaledEvent);
-        scaledEvent.recycle();
-        return handled;
+        // Check if this is in the keyboard area and pass it through
+        float keyboardX = containerX - _floatingKeyboardView.getLeft();
+        float keyboardY = containerY - _floatingKeyboardView.getTop();
+        
+        if (keyboardX >= 0 && keyboardX < _floatingKeyboardView.getWidth() && 
+            keyboardY >= 0 && keyboardY < _floatingKeyboardView.getHeight()) {
+          // This is a keyboard area touch in passthrough mode - don't consume it
+          android.util.Log.d("FloatingKeyboard", "Container onTouchEvent in passthrough mode - not consuming touch");
+          return false; // Don't consume the event, let it pass through
+        }
       }
       
       return super.onTouchEvent(event);
     }
 
-    @Override
-    public boolean onInterceptTouchEvent(MotionEvent ev) {
-      // Don't intercept - let child views handle touches with proper scaling
-      return false;
+
+
+  }
+
+  private void createToggleButtonWindow() {
+    if (_toggleButtonWindow != null) {
+      return; // Already created
+    }
+    
+    try {
+      // Create a new toggle button
+      _toggleButtonWindow = new View(this);
+      
+      GradientDrawable toggleDrawable = new GradientDrawable();
+      toggleDrawable.setColor(0xFF5E81AC); // Nord blue - same inactive color as other handles
+      toggleDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density);
+      _toggleButtonWindow.setBackground(toggleDrawable);
+      
+      // Set up touch listener for the toggle button
+      _toggleButtonWindow.setOnTouchListener(new View.OnTouchListener() {
+        private GradientDrawable originalDrawable = toggleDrawable;
+        
+        @Override
+        public boolean onTouch(View v, MotionEvent event) {
+          android.util.Log.d("FloatingKeyboard", "Separate toggle button touched: " + event.getAction());
+          
+          switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+              // Change handle color when touched
+              GradientDrawable activeDrawable = new GradientDrawable();
+              activeDrawable.setColor(0xFFD8DEE9); // Light gray when pressed
+              activeDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density);
+              v.setBackground(activeDrawable);
+              return true;
+
+            case MotionEvent.ACTION_UP:
+              // Restore original handle color
+              v.setBackground(originalDrawable);
+              
+              // Toggle back to normal mode
+              if (_floatingContainer instanceof ResizableFloatingContainer) {
+                ((ResizableFloatingContainer)_floatingContainer).exitPassthroughMode();
+              }
+              showDebugToast("Keyboard touches re-enabled");
+              return true;
+              
+            case MotionEvent.ACTION_CANCEL:
+              // Restore original handle color
+              v.setBackground(originalDrawable);
+              return true;
+          }
+          
+          return false;
+        }
+      });
+      
+      int handleHeight = 24;
+      int screenWidth = getResources().getDisplayMetrics().widthPixels;
+      int handleWidth = (int) (screenWidth * 0.15f);
+      
+      // Position it at the same location as the main window's toggle button would be
+      _toggleLayoutParams = new WindowManager.LayoutParams(
+          handleWidth,
+          handleHeight,
+          VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE,
+          WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+          PixelFormat.TRANSLUCENT);
+      
+      _toggleLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
+      _toggleLayoutParams.x = _floatingLayoutParams.x + 8; // Same left margin as in main window
+      _toggleLayoutParams.y = _floatingLayoutParams.y + 3; // Same top margin as in main window
+      
+      _windowManager.addView(_toggleButtonWindow, _toggleLayoutParams);
+      
+      android.util.Log.d("FloatingKeyboard", "Separate toggle button window created at " + _toggleLayoutParams.x + "," + _toggleLayoutParams.y);
+    } catch (Exception e) {
+      android.util.Log.e("FloatingKeyboard", "Error creating toggle button window: " + e.getMessage());
+    }
+  }
+
+  private void removeToggleButtonWindow() {
+    if (_toggleButtonWindow != null) {
+      try {
+        _windowManager.removeView(_toggleButtonWindow);
+        _toggleButtonWindow = null;
+        _toggleLayoutParams = null;
+        android.util.Log.d("FloatingKeyboard", "Separate toggle button window removed");
+      } catch (Exception e) {
+        android.util.Log.e("FloatingKeyboard", "Error removing toggle button window: " + e.getMessage());
+      }
     }
   }
 }
