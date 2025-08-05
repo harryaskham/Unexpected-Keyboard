@@ -416,18 +416,30 @@ public class FloatingKeyboard2 extends InputMethodService
   {
     android.util.Log.d("juloo.keyboard2.fork", "Switching to docked IME");
     
-    // Switch to the main (docked) keyboard IME
-    InputMethodManager imm = (InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+    // Use proper InputMethodService.switchInputMethod() instead of InputMethodManager.setInputMethod()
     String dockedImeId = getPackageName() + "/.Keyboard2";
     
     try {
-      // Request to switch to the docked IME
-      imm.setInputMethod(getWindow().getWindow().getAttributes().token, dockedImeId);
-      android.util.Log.d("juloo.keyboard2.fork", "Requested switch to docked IME: " + dockedImeId);
+      // Direct switch using InputMethodService method - more reliable than setInputMethod
+      if (android.os.Build.VERSION.SDK_INT >= 28) {
+        // For API 28+, switchInputMethod with subtype
+        switchInputMethod(dockedImeId, null);
+      } else {
+        // For older APIs, use the simpler switchInputMethod
+        switchInputMethod(dockedImeId);
+      }
+      android.util.Log.d("juloo.keyboard2.fork", "Successfully switched to docked IME: " + dockedImeId);
     } catch (Exception e) {
       android.util.Log.e("juloo.keyboard2.fork", "Failed to switch to docked IME: " + e.getMessage());
-      // Fallback - show IME picker so user can manually select
-      imm.showInputMethodPicker();
+      // More specific fallback - try the old method before showing picker
+      try {
+        InputMethodManager imm = (InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+        imm.setInputMethod(getWindow().getWindow().getAttributes().token, dockedImeId);
+        android.util.Log.d("juloo.keyboard2.fork", "Fallback switch successful");
+      } catch (Exception e2) {
+        android.util.Log.e("juloo.keyboard2.fork", "Fallback failed, showing IME picker: " + e2.getMessage());
+        ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showInputMethodPicker();
+      }
     }
   }
 
