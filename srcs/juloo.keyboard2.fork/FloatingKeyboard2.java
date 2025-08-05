@@ -1133,53 +1133,56 @@ public class FloatingKeyboard2 extends InputMethodService
               float deltaX = event.getRawX() - resizeStartX;
               float deltaY = event.getRawY() - resizeStartY;
               
-              // Calculate width percentage based on horizontal movement from initial values
-              // Drag right = bigger (positive deltaX increases width)
-              // Drag left = smaller (negative deltaX decreases width)
-              float widthChange = deltaX / 1200.0f; // Reduced sensitivity (1200px = 50% change)
-              float newWidthScale = (initialWidthPercent / 100.0f) + widthChange;
-              newWidthScale = Math.max(0.5f, Math.min(1.0f, newWidthScale)); // Clamp 50%-100%
-              int newWidthPercent = (int)(newWidthScale * 100);
-              
-              // Calculate height percentage based on vertical movement from initial values
-              // Drag up = bigger (negative deltaY increases height)
-              // Drag down = smaller (positive deltaY decreases height)
-              float heightChange = -deltaY / 800.0f; // Reduced sensitivity (800px = full range)
-              
-              // Get the max height for current orientation
-              int maxHeight = _config.orientation_landscape ? 50 : 50; // Same max as settings
-              int minHeight = 10;
-              
-              float newHeightScale = (initialHeightPercent / 100.0f) + heightChange;
-              newHeightScale = Math.max(minHeight / 100.0f, Math.min(maxHeight / 100.0f, newHeightScale));
-              int newHeightPercent = (int)(newHeightScale * 100);
-              
-              // Update both dimensions in config
-              updateFloatingKeyboardWidth(newWidthPercent);
-              updateFloatingKeyboardHeight(newHeightPercent);
-              
-              // Adjust window Y position to make keyboard grow upward from resize handle
-              // When dragging up (negative deltaY), keyboard gets taller and should move up
-              // When dragging down (positive deltaY), keyboard gets shorter and should move down
-              int newY = initialWindowY + (int)(deltaY * 0.25f); // Reduced sensitivity to match resize
-              
-              // Get screen dimensions for bounds checking during resize
+              // Get screen dimensions for calculations
               DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
               int screenWidth = displayMetrics.widthPixels;
               int screenHeight = displayMetrics.heightPixels;
-              int currentKeyboardWidth = _floatingContainer.getWidth();
-              int currentKeyboardHeight = _floatingContainer.getHeight();
               
-              // Clamp resize position to screen bounds
-              _floatingLayoutParams.x = Math.max(0, Math.min(_floatingLayoutParams.x, screenWidth - currentKeyboardWidth));
-              _floatingLayoutParams.y = Math.max(0, Math.min(newY, screenHeight - currentKeyboardHeight));
+              // Calculate new pixel-based dimensions directly from touch movement
+              // Drag right = bigger (positive deltaX increases width)
+              // Drag left = smaller (negative deltaX decreases width)
+              int newKeyboardWidth = Math.round(initialWidth + deltaX);
+              
+              // Drag up = bigger (negative deltaY increases height)  
+              // Drag down = smaller (positive deltaY decreases height)
+              int newKeyboardHeight = Math.round(initialHeight - deltaY);
+              
+              // Apply pixel-based constraints
+              int minKeyboardWidth = Math.round(screenWidth * 0.3f);  // Minimum 30% screen width
+              int maxKeyboardWidth = screenWidth;                     // Maximum 100% screen width
+              int minKeyboardHeight = Math.round(screenHeight * 0.1f); // Minimum 10% screen height
+              int maxKeyboardHeight = Math.round(screenHeight * 0.6f); // Maximum 60% screen height
+              
+              // Clamp to constraints
+              newKeyboardWidth = Math.max(minKeyboardWidth, Math.min(newKeyboardWidth, maxKeyboardWidth));
+              newKeyboardHeight = Math.max(minKeyboardHeight, Math.min(newKeyboardHeight, maxKeyboardHeight));
+              
+              // Convert pixel dimensions back to percentages for config storage
+              float newWidthPercent = (float)newKeyboardWidth / screenWidth * 100f;
+              float newHeightPercent = (float)newKeyboardHeight / screenHeight * 100f;
+              
+              // Update dimensions in config (rounded to int for preferences)
+              updateFloatingKeyboardWidth(Math.round(newWidthPercent));
+              updateFloatingKeyboardHeight(Math.round(newHeightPercent));
+              
+              // Calculate new window position to make resize handle follow the corner
+              // The resize handle should stay under the user's finger during resize
+              int newX = _floatingLayoutParams.x;
+              int newY = initialWindowY - (newKeyboardHeight - initialHeight); // Move window up when keyboard grows taller
+              
+              // Apply bounds checking to prevent off-screen positioning
+              newX = Math.max(0, Math.min(newX, screenWidth - newKeyboardWidth));
+              newY = Math.max(0, Math.min(newY, screenHeight - newKeyboardHeight));
+              
+              _floatingLayoutParams.x = newX;
+              _floatingLayoutParams.y = newY;
               
               _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
               
               // Force keyboard redraw with new dimensions
               refreshFloatingKeyboard();
               
-              android.util.Log.d("FloatingKeyboard", "Resize - Width: " + newWidthPercent + "% Height: " + newHeightPercent + "% (deltaX: " + deltaX + " deltaY: " + deltaY + ")");
+              android.util.Log.d("FloatingKeyboard", "Pixel-based resize - " + newKeyboardWidth + "x" + newKeyboardHeight + "px (" + Math.round(newWidthPercent) + "%x" + Math.round(newHeightPercent) + "%) delta: " + Math.round(deltaX) + "x" + Math.round(deltaY) + "px");
               
               return true;
             }
@@ -1192,8 +1195,8 @@ public class FloatingKeyboard2 extends InputMethodService
             isResizing = false;
             // Save final position after resize
             saveFloatingKeyboardPosition();
-            android.util.Log.d("FloatingKeyboard", "Resize end, final scale: " + currentScale);
-            showDebugToast("Resize ended - final scale: " + String.format("%.1f", currentScale) + "x (applied: " + String.format("%.1f", ResizableFloatingContainer.this.getScaleX()) + "x)");
+            android.util.Log.d("FloatingKeyboard", "Resize end - final dimensions: " + ResizableFloatingContainer.this.getWidth() + "x" + ResizableFloatingContainer.this.getHeight() + "px");
+            showDebugToast("Resize ended - " + ResizableFloatingContainer.this.getWidth() + "x" + ResizableFloatingContainer.this.getHeight() + "px");
             return true;
         }
         
