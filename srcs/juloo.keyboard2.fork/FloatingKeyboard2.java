@@ -1048,9 +1048,12 @@ public class FloatingKeyboard2 extends InputMethodService
       passthroughTouchContainer.setOnTouchListener(new PassthroughToggleTouchListener(passthroughToggle));
       addView(passthroughTouchContainer, touchParams);
       
-      // Initially hidden since we start in normal mode
-      passthroughTouchContainer.setVisibility(View.GONE);
+      // Always visible - toggle behavior will handle enable/disable states
+      passthroughTouchContainer.setVisibility(View.VISIBLE);
       passthroughToggle.setElevation(20.0f);
+      
+      // Set initial appearance based on current state
+      updateToggleButtonAppearance();
       
       android.util.Log.d("FloatingKeyboard", "Passthrough toggle created and added - Visual: " + visualWidth + "x" + HANDLE_HEIGHT_DP + ", Touch: " + touchWidth + "x" + HANDLE_TOUCH_HEIGHT_DP);
       
@@ -1088,9 +1091,14 @@ public class FloatingKeyboard2 extends InputMethodService
             // Restore original handle color
             handleView.setBackground(originalDrawable);
             
-            // Toggle back to normal mode
-            exitPassthroughMode();
-            showDebugToast("Keyboard touches re-enabled");
+            // Toggle between enabled and disabled states
+            if (passthroughMode) {
+              exitPassthroughMode();
+              showDebugToast("Keyboard enabled");
+            } else {
+              enterPassthroughMode();
+              showDebugToast("Keyboard disabled (passthrough)");
+            }
             return true;
             
           case MotionEvent.ACTION_CANCEL:
@@ -1245,24 +1253,23 @@ public class FloatingKeyboard2 extends InputMethodService
         passthroughMode = true;
         
         try {
-          // Make the entire main window not touchable
-          _floatingLayoutParams.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
-          windowManager.updateViewLayout(this, _floatingLayoutParams);
+          // Make the main window not touchable except for handles (via touch interception)
+          // We don't use FLAG_NOT_TOUCHABLE since we need the toggle button to remain touchable
+          // Touch interception in onInterceptTouchEvent will handle passthrough behavior
           
           // Dim the keyboard to show it's in passthrough mode
           if (_floatingKeyboardView != null) {
             _floatingKeyboardView.setAlpha(0.3f);
           }
           
-          // Hide the toggle button from the main window
-          if (passthroughTouchContainer != null) {
-            passthroughTouchContainer.setVisibility(View.GONE);
-          }
+          // Update toggle button appearance to show disabled state
+          updateToggleButtonAppearance();
           
-          // Create a separate touchable window for the toggle button
-          createToggleButtonWindow();
+          // Keep the toggle button visible in main window (always-present feature)
+          // No need to create separate window since the toggle should remain touchable
+          // The toggle button stays in the main window but remains touchable
           
-          android.util.Log.d("FloatingKeyboard", "Entered passthrough mode - main window not touchable, separate toggle window created");
+          android.util.Log.d("FloatingKeyboard", "Entered passthrough mode - keyboard dimmed, toggle button remains visible");
         } catch (Exception e) {
           android.util.Log.e("FloatingKeyboard", "Error entering passthrough mode: " + e.getMessage());
         }
@@ -1274,22 +1281,39 @@ public class FloatingKeyboard2 extends InputMethodService
         passthroughMode = false;
         
         try {
-          // Remove the separate toggle button window
-          removeToggleButtonWindow();
-          
-          // Restore main window touchability
-          _floatingLayoutParams.flags &= ~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
-          windowManager.updateViewLayout(this, _floatingLayoutParams);
+          // Main window touchability was not changed, so no need to restore it
+          // Just restore keyboard appearance
           
           // Restore keyboard full opacity
           if (_floatingKeyboardView != null) {
             _floatingKeyboardView.setAlpha(1.0f);
           }
           
-          android.util.Log.d("FloatingKeyboard", "Exited passthrough mode - main window touchable, keyboard restored, toggle window removed");
+          // Update toggle button appearance to show enabled state
+          updateToggleButtonAppearance();
+          
+          android.util.Log.d("FloatingKeyboard", "Exited passthrough mode - keyboard restored to full opacity");
         } catch (Exception e) {
           android.util.Log.e("FloatingKeyboard", "Error exiting passthrough mode: " + e.getMessage());
         }
+      }
+    }
+
+    private void updateToggleButtonAppearance() {
+      if (passthroughToggle != null) {
+        GradientDrawable toggleDrawable = new GradientDrawable();
+        toggleDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density);
+        
+        if (passthroughMode) {
+          // Disabled state - use a different color (orange/red to indicate disabled)
+          toggleDrawable.setColor(0xFFBF616A); // Nord red - indicates disabled
+        } else {
+          // Enabled state - use normal inactive color
+          toggleDrawable.setColor(HANDLE_COLOR_INACTIVE); // Nord blue - indicates enabled
+        }
+        
+        passthroughToggle.setBackground(toggleDrawable);
+        android.util.Log.d("FloatingKeyboard", "Updated toggle button appearance - passthrough mode: " + passthroughMode);
       }
     }
 
@@ -1331,7 +1355,7 @@ public class FloatingKeyboard2 extends InputMethodService
               // This is a gap touch - enter passthrough mode
               android.util.Log.d("FloatingKeyboard", "Gap touch detected - entering passthrough mode");
               enterPassthroughMode();
-              showDebugToast("Passthrough mode enabled - tap top-left button to re-enable keyboard");
+              showDebugToast("Keyboard disabled - tap top-left toggle button to re-enable");
               return true; // Intercept this touch and consume it
             } else {
               android.util.Log.d("FloatingKeyboard", "Key touch detected - normal processing");
