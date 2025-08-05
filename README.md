@@ -9,8 +9,8 @@ Personal fork of Unexpected Keyboard with additional features:
 - **Floating keyboard mode**: Detach keyboard from bottom of screen as a draggable floating window  
 - **Nord colorscheme**: Arctic-inspired dark theme with blue accents
 
-![](img/float.png)
+<img src="img/float.png" />
 *Floating resizable portrait with ortho layout*
 
-![](img/split.png)
+<img src="img/split.png" />
 *Floating resizable landscape with split layout*
