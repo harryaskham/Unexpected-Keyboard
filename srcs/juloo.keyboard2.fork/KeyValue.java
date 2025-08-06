@@ -509,6 +509,41 @@ public final class KeyValue implements Comparable<KeyValue>
       special key, it is parsed with [KeyValueParser]. */
   public static KeyValue getKeyByName(String name)
   {
+    // Debug: log all calls to getKeyByName to see what's being passed
+    if (name != null && (name.contains(":") || name.contains("⟷") || name.contains("⟺") || name.contains("⥺") || name.startsWith("switch_to_layout"))) {
+      android.util.Log.d("juloo.keyboard2.fork", "getKeyByName called with: '" + name + "' (length: " + name.length() + ")");
+    }
+    
+    // Handle symbol:keycode format (e.g., "⥺:switch_to_layout_Code_QWERTY")
+    if (name != null && name.contains(":")) {
+      int colonIndex = name.indexOf(':');
+      if (colonIndex > 0) {
+        String symbol = name.substring(0, colonIndex);
+        String keycode = name.substring(colonIndex + 1);
+        
+        // For switch_to_layout keys, we need special handling
+        if (keycode.startsWith("switch_to_layout_")) {
+          android.util.Log.d("juloo.keyboard2.fork", "Parsing symbol:keycode - symbol: '" + symbol + "', keycode: '" + keycode + "'");
+          // Create KeyValue using keycode for functionality, but display the symbol
+          String layoutName = keycode.substring("switch_to_layout_".length());
+          KeyValue kv = new KeyValue(layoutName, Kind.Event, Event.SWITCH_TO_LAYOUT.ordinal(), 
+                                    FLAG_SPECIAL | FLAG_SECONDARY | FLAG_SMALLER_FONT);
+          return kv.withSymbol(symbol); // Use the visual symbol for display
+        }
+        
+        // For other keys, try to get the keycode version but display the symbol
+        KeyValue k = getSpecialKeyByName(keycode);
+        if (k != null) {
+          return k.withSymbol(symbol);
+        }
+      }
+    }
+    
+    // Add debug logging for switch_to_layout keys to trace the issue
+    if (name != null && name.startsWith("switch_to_layout_")) {
+      android.util.Log.d("juloo.keyboard2.fork", "getKeyByName called with: '" + name + "'");
+    }
+    
     KeyValue k = getSpecialKeyByName(name);
     if (k != null)
       return k;
@@ -527,10 +562,9 @@ public final class KeyValue implements Comparable<KeyValue>
     // Handle dynamic switch_to_layout_<layoutName> actions
     if (name.startsWith("switch_to_layout_")) {
       String layoutName = name.substring("switch_to_layout_".length());
-      // Clean layout name - replace underscores with spaces and ensure valid characters
-      String cleanLayoutName = layoutName.replaceAll("_", " ");
-      // Create a compact display name by taking first few characters
-      String displayName = cleanLayoutName.length() > 6 ? cleanLayoutName.substring(0, 6) + "…" : cleanLayoutName;
+      android.util.Log.d("juloo.keyboard2.fork", "Creating SWITCH_TO_LAYOUT KeyValue for: '" + name + "' -> layoutName: '" + layoutName + "'");
+      // Store the original extracted layout name as payload to survive visual customization
+      // The payload will be returned by getLayoutName() and used for layout matching
       return new KeyValue(layoutName, Kind.Event, Event.SWITCH_TO_LAYOUT.ordinal(), 
                          FLAG_SPECIAL | FLAG_SECONDARY | FLAG_SMALLER_FONT);
     }
