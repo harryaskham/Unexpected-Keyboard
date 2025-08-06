@@ -147,6 +147,33 @@ public abstract class ListGroupPreference<E> extends PreferenceGroup
     set_values(_values, true);
   }
 
+  void move_item_up(int i)
+  {
+    if (i > 0 && i < _values.size()) {
+      E item = _values.remove(i);
+      _values.add(i - 1, item);
+      set_values(_values, true);
+    }
+  }
+
+  void move_item_down(int i)
+  {
+    if (i >= 0 && i < _values.size() - 1) {
+      E item = _values.remove(i);
+      _values.add(i + 1, item);
+      set_values(_values, true);
+    }
+  }
+
+  void move_item(int from, int to)
+  {
+    if (from >= 0 && from < _values.size() && to >= 0 && to < _values.size() && from != to) {
+      E item = _values.remove(from);
+      _values.add(to, item);
+      set_values(_values, true);
+    }
+  }
+
   /** Internal */
 
   @Override
@@ -207,6 +234,39 @@ public abstract class ListGroupPreference<E> extends PreferenceGroup
     protected View onCreateView(ViewGroup parent)
     {
       View v = super.onCreateView(parent);
+      
+      // Handle move up button
+      View move_up_btn = v.findViewById(R.id.pref_listgroup_move_up_btn);
+      if (move_up_btn != null) {
+        move_up_btn.setOnClickListener(new View.OnClickListener() {
+          @Override
+          public void onClick(View _v)
+          {
+            move_item_up(_index);
+          }
+        });
+        // Disable if this is the first item
+        move_up_btn.setEnabled(_index > 0);
+        move_up_btn.setAlpha(_index > 0 ? 1.0f : 0.3f);
+      }
+      
+      // Handle move down button
+      View move_down_btn = v.findViewById(R.id.pref_listgroup_move_down_btn);
+      if (move_down_btn != null) {
+        move_down_btn.setOnClickListener(new View.OnClickListener() {
+          @Override
+          public void onClick(View _v)
+          {
+            move_item_down(_index);
+          }
+        });
+        // Disable if this is the last item
+        boolean isLastItem = (_index >= _values.size() - 1);
+        move_down_btn.setEnabled(!isLastItem);
+        move_down_btn.setAlpha(!isLastItem ? 1.0f : 0.3f);
+      }
+      
+      // Handle remove button
       View remove_btn = v.findViewById(R.id.pref_listgroup_remove_btn);
       if (remove_btn != null)
         remove_btn.setOnClickListener(new View.OnClickListener() {
