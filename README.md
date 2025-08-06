@@ -2,7 +2,7 @@
 
 *Note: This fork was entirely undertaken by Claude Code as part of my testing of CC - after a few false starts, humblingly, all works well enough for me to daily-drive. I've made a point of not writing a single line of this myself, besides prompting CC and parts of this README. Unless extremely brave I'd suggest not relying on this fork which is extremely tailored to how I use UK, and instead following mainline development.*
 
-A personal fork of Unexpected Keyboard with additional features I've wanted as I've gradually increased the amount of code I'm writing on my phone:
+A personal fork of [Unexpected Keyboard](https://github.com/Julow/Unexpected-Keyboard) with additional features I've wanted as I've gradually increased the amount of code I'm writing on my phone (essentially testing out LLMs as a way of achiving "arbitrary dotfiles" for adding customisation to apps that don't otherwise expose it)
 
 ## Features Added
 
@@ -14,11 +14,13 @@ A personal fork of Unexpected Keyboard with additional features I've wanted as I
 - **Fast toggle**: tapping a gap on the surface disables the keyboard, re-enabled by a small handle, passing through touches and swipes
   - Indended for use with split layouts, makes landscape mode much more usable
 
+Floating resizable landscape with split layout:
+
 <img src="img/split.jpg" width="720" />
-*Floating resizable landscape with split layout*
+
+Floating resizable portrait with ortho layout:
 
 <img src="img/float.jpg" height="720" />
-*Floating resizable portrait with ortho layout*
 
 ### Layout Loading from Storage
 - Load / refresh XML keyboard layouts from device storage

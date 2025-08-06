@@ -834,7 +834,6 @@ public class FloatingKeyboard2 extends InputMethodService
       });
       
       dragTouchContainer.setOnTouchListener(new FloatingDragTouchListener(dragHandle));
-      
       android.util.Log.d("FloatingKeyboard", "Drag handle created - Visual: " + visualWidth + "x" + HANDLE_HEIGHT_DP + ", Touch: " + touchWidth + "x" + HANDLE_TOUCH_HEIGHT_DP);
       container.setWindowManager(_windowManager, params);
       
