@@ -73,6 +73,7 @@ public final class Config
   public boolean borderConfig;
   public int circle_sensitivity;
   public boolean clipboard_history_enabled;
+  public boolean keyboard_persistence_enabled;
 
   // Dynamically set
   public boolean shouldOfferVoiceTyping;
@@ -189,6 +190,7 @@ public final class Config
     current_layout_wide = _prefs.getInt("current_layout_landscape", 0);
     circle_sensitivity = Integer.valueOf(_prefs.getString("circle_sensitivity", "2"));
     clipboard_history_enabled = _prefs.getBoolean("clipboard_history_enabled", false);
+    keyboard_persistence_enabled = _prefs.getBoolean("keyboard_persistence_enabled", false);
 
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;
@@ -217,6 +219,12 @@ public final class Config
   {
     clipboard_history_enabled = e;
     _prefs.edit().putBoolean("clipboard_history_enabled", e).commit();
+  }
+
+  public void set_keyboard_persistence_enabled(boolean e)
+  {
+    keyboard_persistence_enabled = e;
+    _prefs.edit().putBoolean("keyboard_persistence_enabled", e).commit();
   }
 
   private float get_dip_pref(DisplayMetrics dm, String pref_name, float def)

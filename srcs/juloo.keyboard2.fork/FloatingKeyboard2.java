@@ -239,16 +239,26 @@ public class FloatingKeyboard2 extends InputMethodService
   public void onFinishInputView(boolean finishingInput)
   {
     super.onFinishInputView(finishingInput);
-    // Hide floating keyboard when input view is finished
-    removeFloatingKeyboard();
+    // Only hide floating keyboard if persistence is disabled
+    if (!_config.keyboard_persistence_enabled) {
+      android.util.Log.d("juloo.keyboard2.fork", "Hiding floating keyboard (persistence disabled)");
+      removeFloatingKeyboard();
+    } else {
+      android.util.Log.d("juloo.keyboard2.fork", "Keeping floating keyboard visible (persistence enabled)");
+    }
   }
 
   @Override
   public void onFinishInput()
   {
     super.onFinishInput();
-    // Also hide when input is completely finished
-    removeFloatingKeyboard();
+    // Only hide when input is completely finished if persistence is disabled
+    if (!_config.keyboard_persistence_enabled) {
+      android.util.Log.d("juloo.keyboard2.fork", "Hiding floating keyboard on finish input (persistence disabled)");
+      removeFloatingKeyboard();
+    } else {
+      android.util.Log.d("juloo.keyboard2.fork", "Keeping floating keyboard visible on finish input (persistence enabled)");
+    }
   }
 
   private void refresh_action_label(EditorInfo info)
@@ -359,6 +369,10 @@ public class FloatingKeyboard2 extends InputMethodService
         case TOGGLE_FLOATING:
           switch_to_docked_ime();
           break;
+
+        case TOGGLE_PERSISTENCE:
+          toggle_keyboard_persistence();
+          break;
       }
     }
 
@@ -417,6 +431,20 @@ public class FloatingKeyboard2 extends InputMethodService
       // Fallback - show IME picker so user can manually select
       imm.showInputMethodPicker();
     }
+  }
+
+  private void toggle_keyboard_persistence()
+  {
+    boolean currentState = _config.keyboard_persistence_enabled;
+    boolean newState = !currentState;
+    
+    android.util.Log.d("juloo.keyboard2.fork", "Toggling keyboard persistence from " + currentState + " to " + newState);
+    
+    _config.set_keyboard_persistence_enabled(newState);
+    
+    // Show toast feedback to user
+    String message = newState ? "Keyboard persistence enabled" : "Keyboard persistence disabled";
+    Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
   }
 
   private View inflate_view(int layout)
