@@ -33,7 +33,7 @@ public class FloatingKeyboard2 extends InputMethodService
 {
   // Handle styling constants for consistency across all handles
   private static final int HANDLE_HEIGHT_DP = 24;
-  private static final float HANDLE_WIDTH_SCREEN_PERCENT = 0.2f;
+  private static final float HANDLE_WIDTH_SCREEN_PERCENT = 0.1f; // Halved from 0.2f
   private static final int HANDLE_COLOR_INACTIVE = 0xFF5E81AC; // Nord blue
   private static final int HANDLE_COLOR_ACTIVE = 0xFFD8DEE9; // Light gray when pressed
   private static final int HANDLE_MARGIN_TOP_DP = 3;
@@ -41,8 +41,7 @@ public class FloatingKeyboard2 extends InputMethodService
   
   // Touch area constants for better usability
   private static final int HANDLE_TOUCH_HEIGHT_DP = 48; // Double the visual height for easier targeting
-  private static final float HANDLE_TOUCH_WIDTH_SCREEN_PERCENT = 0.25f; // 25% instead of 20% for easier targeting
-  
+  private static final float HANDLE_TOUCH_WIDTH_SCREEN_PERCENT = 0.125f; // Halved from 0.25f
   private Keyboard2View _keyboardView;
   private KeyEventHandler _keyeventhandler;
   private KeyboardData _currentSpecialLayout;
