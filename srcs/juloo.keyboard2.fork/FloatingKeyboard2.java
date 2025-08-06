@@ -784,7 +784,7 @@ public class FloatingKeyboard2 extends InputMethodService
       
       int handleHeight = 24;
       int screenWidth = getResources().getDisplayMetrics().widthPixels;
-      int handleWidth = (int) (screenWidth * 0.2f);
+      int handleWidth = (int) (screenWidth * 0.1f); // Halved from 0.2f
       
       FrameLayout.LayoutParams dragParams = new FrameLayout.LayoutParams(handleWidth, handleHeight);
       dragParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
@@ -967,7 +967,7 @@ public class FloatingKeyboard2 extends InputMethodService
       
       int handleHeight = 24; // Same height as drag handle
       int screenWidth = getResources().getDisplayMetrics().widthPixels;
-      int handleWidth = (int) (screenWidth * 0.2f); // Same width calculation as drag handle
+      int handleWidth = (int) (screenWidth * 0.1f); // Halved from 0.2f // Same width calculation as drag handle
       
       // Position on top-right, same level as drag handle
       FrameLayout.LayoutParams handleParams = new FrameLayout.LayoutParams(handleWidth, handleHeight);
@@ -996,7 +996,7 @@ public class FloatingKeyboard2 extends InputMethodService
       
       int handleHeight = 24; // Same height as other handles
       int screenWidth = getResources().getDisplayMetrics().widthPixels;
-      int handleWidth = (int) (screenWidth * 0.15f); // Slightly smaller than other handles for discreteness
+      int handleWidth = (int) (screenWidth * 0.075f); // Halved from 0.15f // Slightly smaller than other handles for discreteness
       
       // Position on top-left, same level as other handles
       FrameLayout.LayoutParams handleParams = new FrameLayout.LayoutParams(handleWidth, handleHeight);
@@ -1382,7 +1382,7 @@ public class FloatingKeyboard2 extends InputMethodService
       
       int handleHeight = 24;
       int screenWidth = getResources().getDisplayMetrics().widthPixels;
-      int handleWidth = (int) (screenWidth * 0.15f);
+      int handleWidth = (int) (screenWidth * 0.075f); // Halved from 0.15f
       
       // Position it at the same location as the main window's toggle button would be
       _toggleLayoutParams = new WindowManager.LayoutParams(
