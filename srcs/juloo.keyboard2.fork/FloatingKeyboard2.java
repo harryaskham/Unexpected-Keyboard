@@ -455,21 +455,29 @@ public class FloatingKeyboard2 extends InputMethodService
     for (int i = 0; i < _config.layouts.size(); i++) {
       KeyboardData layout = _config.layouts.get(i);
       if (layout != null && layout.name != null) {
-        // Compare layout names (case-insensitive, handle spaces/underscores)
-        String normalizedLayoutName = layout.name.toLowerCase().replaceAll("\\s+", "_");
-        String normalizedTargetName = layoutName.toLowerCase().replaceAll("\\s+", "_");
+        // Normalize layout names: convert spaces to underscores, remove non-alphanumeric chars, lowercase
+        String normalizedLayoutName = normalizeLayoutName(layout.name);
+        String normalizedTargetName = normalizeLayoutName(layoutName);
         
-        if (normalizedLayoutName.equals(normalizedTargetName) || 
-            normalizedLayoutName.contains(normalizedTargetName) ||
-            normalizedTargetName.contains(normalizedLayoutName)) {
-          android.util.Log.d("juloo.keyboard2.fork", "Found matching layout at index " + i + ": " + layout.name);
+        android.util.Log.d("juloo.keyboard2.fork", "Comparing '" + normalizedTargetName + "' with '" + normalizedLayoutName + "' (original: '" + layout.name + "')");
+        
+        if (normalizedLayoutName.equals(normalizedTargetName)) {
+          android.util.Log.d("juloo.keyboard2.fork", "Found exact match at index " + i + ": " + layout.name);
           setTextLayout(i);
           return;
         }
       }
     }
 
-    android.util.Log.w("juloo.keyboard2.fork", "Layout not found: " + layoutName);
+    android.util.Log.w("juloo.keyboard2.fork", "Layout not found: " + layoutName + " (normalized: " + normalizeLayoutName(layoutName) + ")");
+  }
+  
+  private String normalizeLayoutName(String name) {
+    if (name == null) return "";
+    // Convert to lowercase, replace spaces with underscores, remove non-alphanumeric chars (except underscores)
+    return name.toLowerCase()
+               .replaceAll("\\s+", "_")
+               .replaceAll("[^a-z0-9_]", "");
   }
 
   private void switch_to_docked_ime()
@@ -1358,9 +1366,9 @@ public class FloatingKeyboard2 extends InputMethodService
         passthroughMode = true;
         
         try {
-          // Make the main window not touchable except for handles (via touch interception)
-          // We don't use FLAG_NOT_TOUCHABLE since we need the toggle button to remain touchable
-          // Touch interception in onInterceptTouchEvent will handle passthrough behavior
+          // Make the main window not touchable so touches pass through to underlying apps
+          _floatingLayoutParams.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+          windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
           
           // Dim the keyboard to show it's in passthrough mode
           if (_floatingKeyboardView != null) {
@@ -1370,14 +1378,10 @@ public class FloatingKeyboard2 extends InputMethodService
           // Update handle opacity for disabled state
           updateHandleOpacity(false);
           
-          // Update toggle button appearance to show disabled state
-          updateToggleButtonAppearance();
+          // Create a separate touchable window for the toggle button
+          createToggleButtonWindow();
           
-          // Keep the toggle button visible in main window (always-present feature)
-          // No need to create separate window since the toggle should remain touchable
-          // The toggle button stays in the main window but remains touchable
-          
-          android.util.Log.d("FloatingKeyboard", "Entered passthrough mode - keyboard dimmed, toggle button remains visible");
+          android.util.Log.d("FloatingKeyboard", "Entered passthrough mode - main window not touchable, separate toggle window created");
         } catch (Exception e) {
           android.util.Log.e("FloatingKeyboard", "Error entering passthrough mode: " + e.getMessage());
         }
@@ -1389,8 +1393,9 @@ public class FloatingKeyboard2 extends InputMethodService
         passthroughMode = false;
         
         try {
-          // Main window touchability was not changed, so no need to restore it
-          // Just restore keyboard appearance
+          // Restore main window touchability
+          _floatingLayoutParams.flags &= ~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+          windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
           
           // Restore keyboard full opacity
           if (_floatingKeyboardView != null) {
@@ -1400,10 +1405,11 @@ public class FloatingKeyboard2 extends InputMethodService
           // Update handle opacity for active state
           updateHandleOpacity(true);
           
-          // Update toggle button appearance to show enabled state
+          // Remove the separate toggle button window and restore toggle button appearance
+          removeToggleButtonWindow();
           updateToggleButtonAppearance();
           
-          android.util.Log.d("FloatingKeyboard", "Exited passthrough mode - keyboard restored to full opacity");
+          android.util.Log.d("FloatingKeyboard", "Exited passthrough mode - main window touchable, keyboard restored, toggle window removed");
         } catch (Exception e) {
           android.util.Log.e("FloatingKeyboard", "Error exiting passthrough mode: " + e.getMessage());
         }
