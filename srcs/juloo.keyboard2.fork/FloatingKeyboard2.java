@@ -31,6 +31,10 @@ import juloo.keyboard2.fork.prefs.LayoutsPreference;
 public class FloatingKeyboard2 extends InputMethodService
   implements SharedPreferences.OnSharedPreferenceChangeListener
 {
+  // Handle opacity constants
+  private static final float HANDLE_ACTIVE_ALPHA = 0.8f;    // 80% opacity when keyboard is active
+  private static final float HANDLE_DIMMED_ALPHA = 0.4f;    // Dimmed when keyboard is disabled
+  private static final float HANDLE_REENABLE_ALPHA = 0.8f;  // Re-enable handle always 80%
   private Keyboard2View _keyboardView;
   private KeyEventHandler _keyeventhandler;
   private KeyboardData _currentSpecialLayout;
@@ -50,6 +54,11 @@ public class FloatingKeyboard2 extends InputMethodService
   // Separate window for toggle button to remain touchable in passthrough mode
   private View _toggleButtonWindow;
   private WindowManager.LayoutParams _toggleLayoutParams;
+  
+  // Handle references for opacity control
+  private View _dragHandle;
+  private View _resizeHandle;
+  private View _passthroughToggle;
 
   KeyboardData current_layout_unmodified()
   {
@@ -447,6 +456,35 @@ public class FloatingKeyboard2 extends InputMethodService
     Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
   }
 
+  private void updateHandleOpacity(boolean keyboardActive)
+  {
+    android.util.Log.d("juloo.keyboard2.fork", "Updating handle opacity - keyboard active: " + keyboardActive);
+    
+    if (keyboardActive) {
+      // Keyboard is active - set handles to 80% opacity
+      if (_dragHandle != null) {
+        _dragHandle.setAlpha(HANDLE_ACTIVE_ALPHA);
+      }
+      if (_resizeHandle != null) {
+        _resizeHandle.setAlpha(HANDLE_ACTIVE_ALPHA);
+      }
+      if (_passthroughToggle != null) {
+        _passthroughToggle.setAlpha(HANDLE_REENABLE_ALPHA); // Always 80% for re-enable
+      }
+    } else {
+      // Keyboard is disabled - dim drag and resize handles, but keep re-enable handle at 80%
+      if (_dragHandle != null) {
+        _dragHandle.setAlpha(HANDLE_DIMMED_ALPHA);
+      }
+      if (_resizeHandle != null) {
+        _resizeHandle.setAlpha(HANDLE_DIMMED_ALPHA);
+      }
+      if (_passthroughToggle != null) {
+        _passthroughToggle.setAlpha(HANDLE_REENABLE_ALPHA); // Always 80% as specified
+      }
+    }
+  }
+
   private View inflate_view(int layout)
   {
     return View.inflate(new android.view.ContextThemeWrapper(this, _config.theme), layout, null);
@@ -738,11 +776,11 @@ public class FloatingKeyboard2 extends InputMethodService
       container.addView(_floatingKeyboardView, keyboardParams);
       
       // Create drag handle
-      View dragHandle = new View(this);
+      _dragHandle = new View(this);
       GradientDrawable handleDrawable = new GradientDrawable();
       handleDrawable.setColor(0xFF5E81AC); // Nord blue - proper inactive color
       handleDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density);
-      dragHandle.setBackground(handleDrawable);
+      _dragHandle.setBackground(handleDrawable);
       
       int handleHeight = 24;
       int screenWidth = getResources().getDisplayMetrics().widthPixels;
@@ -751,13 +789,18 @@ public class FloatingKeyboard2 extends InputMethodService
       FrameLayout.LayoutParams dragParams = new FrameLayout.LayoutParams(handleWidth, handleHeight);
       dragParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
       dragParams.setMargins(0, 3, 0, 0);
-      container.addView(dragHandle, dragParams);
+      container.addView(_dragHandle, dragParams);
       
       // Create resize handle after keyboard is added
       container.createResizeHandle();
+      _resizeHandle = container.getResizeHandle();
       
       // Create passthrough toggle button
       container.createPassthroughToggle();
+      _passthroughToggle = container.getPassthroughToggle();
+      
+      // Set initial handle opacity to active state (80%)
+      updateHandleOpacity(true);
       
       // Set up window parameters for overlay - enable pass-through for gaps
       int windowFlags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | 
@@ -788,7 +831,7 @@ public class FloatingKeyboard2 extends InputMethodService
       _floatingLayoutParams = params;
       _floatingContainer = container;
       
-      dragHandle.setOnTouchListener(new FloatingDragTouchListener(dragHandle));
+      _dragHandle.setOnTouchListener(new FloatingDragTouchListener(_dragHandle));
       
       android.util.Log.d("FloatingKeyboard", "Drag handle created - Width: " + handleWidth + " Height: " + handleHeight);
       container.setWindowManager(_windowManager, params);
@@ -1154,6 +1197,9 @@ public class FloatingKeyboard2 extends InputMethodService
             _floatingKeyboardView.setAlpha(0.3f);
           }
           
+          // Update handle opacity for disabled state
+          updateHandleOpacity(false);
+          
           // Hide the toggle button from the main window
           if (passthroughToggle != null) {
             passthroughToggle.setVisibility(View.GONE);
@@ -1185,6 +1231,9 @@ public class FloatingKeyboard2 extends InputMethodService
           if (_floatingKeyboardView != null) {
             _floatingKeyboardView.setAlpha(1.0f);
           }
+          
+          // Update handle opacity for active state
+          updateHandleOpacity(true);
           
           android.util.Log.d("FloatingKeyboard", "Exited passthrough mode - main window touchable, keyboard restored, toggle window removed");
         } catch (Exception e) {
@@ -1269,8 +1318,14 @@ public class FloatingKeyboard2 extends InputMethodService
       return super.onTouchEvent(event);
     }
 
+    // Getter methods for handle references
+    public View getResizeHandle() {
+      return resizeHandle;
+    }
 
-
+    public View getPassthroughToggle() {
+      return passthroughToggle;
+    }
   }
 
   private void createToggleButtonWindow() {
