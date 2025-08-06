@@ -427,12 +427,49 @@ public class FloatingKeyboard2 extends InputMethodService
     {
       return _handler;
     }
+
+    public void handle_event_key_with_value(KeyValue keyValue)
+    {
+      if (keyValue.getEvent() == KeyValue.Event.SWITCH_TO_LAYOUT) {
+        switch_to_layout_by_name(keyValue.getLayoutName());
+      }
+    }
   }
 
   void incrTextLayout(int delta)
   {
     int s = _config.layouts.size();
     setTextLayout((_config.get_current_layout() + delta + s) % s);
+  }
+
+  private void switch_to_layout_by_name(String layoutName)
+  {
+    if (layoutName == null || layoutName.isEmpty()) {
+      android.util.Log.w("juloo.keyboard2.fork", "Cannot switch to layout: name is null or empty");
+      return;
+    }
+
+    android.util.Log.d("juloo.keyboard2.fork", "Switching to layout by name: " + layoutName);
+
+    // Find matching layout in available layouts
+    for (int i = 0; i < _config.layouts.size(); i++) {
+      KeyboardData layout = _config.layouts.get(i);
+      if (layout != null && layout.name != null) {
+        // Compare layout names (case-insensitive, handle spaces/underscores)
+        String normalizedLayoutName = layout.name.toLowerCase().replaceAll("\\s+", "_");
+        String normalizedTargetName = layoutName.toLowerCase().replaceAll("\\s+", "_");
+        
+        if (normalizedLayoutName.equals(normalizedTargetName) || 
+            normalizedLayoutName.contains(normalizedTargetName) ||
+            normalizedTargetName.contains(normalizedLayoutName)) {
+          android.util.Log.d("juloo.keyboard2.fork", "Found matching layout at index " + i + ": " + layout.name);
+          setTextLayout(i);
+          return;
+        }
+      }
+    }
+
+    android.util.Log.w("juloo.keyboard2.fork", "Layout not found: " + layoutName);
   }
 
   private void switch_to_docked_ime()
