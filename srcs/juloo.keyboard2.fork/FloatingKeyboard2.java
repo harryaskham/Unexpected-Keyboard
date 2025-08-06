@@ -846,7 +846,6 @@ public class FloatingKeyboard2 extends InputMethodService
       });
       
       dragTouchContainer.setOnTouchListener(new FloatingDragTouchListener(dragHandle));
-      
       android.util.Log.d("FloatingKeyboard", "Drag handle created - Visual: " + visualWidth + "x" + HANDLE_HEIGHT_DP + ", Touch: " + touchWidth + "x" + HANDLE_TOUCH_HEIGHT_DP);
       container.setWindowManager(_windowManager, params);
       
@@ -1054,7 +1053,6 @@ public class FloatingKeyboard2 extends InputMethodService
       
       // Set initial appearance based on current state
       updateToggleButtonAppearance();
-      
       android.util.Log.d("FloatingKeyboard", "Passthrough toggle created and added - Visual: " + visualWidth + "x" + HANDLE_HEIGHT_DP + ", Touch: " + touchWidth + "x" + HANDLE_TOUCH_HEIGHT_DP);
       
       // Test if handle gets layout correctly
@@ -1196,7 +1194,6 @@ public class FloatingKeyboard2 extends InputMethodService
               
               _floatingLayoutParams.x = newX;
               _floatingLayoutParams.y = newY;
-              
               _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
               
               // Force keyboard redraw with new dimensions
