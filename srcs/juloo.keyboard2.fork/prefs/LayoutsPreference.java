@@ -170,10 +170,11 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
   void select_dialog(final SelectionCallback callback)
   {
     // Add directory option to layout names
-    String[] enhancedLayoutNames = new String[_layout_display_names.length + 2];
+    String[] enhancedLayoutNames = new String[_layout_display_names.length + 3];
     System.arraycopy(_layout_display_names, 0, enhancedLayoutNames, 0, _layout_display_names.length);
     enhancedLayoutNames[_layout_display_names.length] = "Load from Directory";
     enhancedLayoutNames[_layout_display_names.length + 1] = "Refresh Directory Layouts";
+    enhancedLayoutNames[_layout_display_names.length + 2] = "Remove All Custom Layouts";
     
     ArrayAdapter layouts = new ArrayAdapter(getContext(), android.R.layout.simple_list_item_1, enhancedLayoutNames);
     new AlertDialog.Builder(getContext())
@@ -191,6 +192,12 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
           {
             // Refresh Directory Layouts option selected
             refreshDirectoryLayouts(callback);
+            return;
+          }
+          if (which == _layout_display_names.length + 2)
+          {
+            // Remove All Custom Layouts option selected
+            removeAllCustomLayouts(callback);
             return;
           }
           
@@ -354,6 +361,50 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
         });
   }
 
+  /** Remove all custom layouts, keeping only named and system layouts. */
+  private void removeAllCustomLayouts(final SelectionCallback callback) {
+    new AlertDialog.Builder(getContext())
+      .setTitle("Remove All Custom Layouts")
+      .setMessage("This will remove all custom layouts loaded from files and directories. Named and system layouts will be kept.\n\nThis action cannot be undone. Are you sure?")
+      .setPositiveButton("Remove All", new DialogInterface.OnClickListener() {
+        @Override
+        public void onClick(DialogInterface dialog, int which) {
+          // Filter out all CustomLayout instances, keeping only NamedLayout and SystemLayout
+          List<Layout> filteredLayouts = new ArrayList<Layout>();
+          int removedCount = 0;
+          
+          for (Layout layout : _values) {
+            if (layout instanceof CustomLayout) {
+              removedCount++;
+            } else {
+              // Keep named layouts and system layout
+              filteredLayouts.add(layout);
+            }
+          }
+          
+          // Ensure we always have at least the system layout
+          if (filteredLayouts.isEmpty()) {
+            filteredLayouts.add(new SystemLayout());
+          }
+          
+          set_values(filteredLayouts, true);
+          
+          Toast.makeText(getContext(), 
+              "Removed " + removedCount + " custom layouts", 
+              Toast.LENGTH_SHORT).show();
+              
+          callback.select(null);
+        }
+      })
+      .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+        @Override
+        public void onClick(DialogInterface dialog, int which) {
+          callback.select(null);
+        }
+      })
+      .show();
+  }
+
   /** Refresh directory layouts by re-scanning last used directory. */
   private void refreshDirectoryLayouts(SelectionCallback callback) {
     // Get the last used directory path from shared preferences or ask user
@@ -378,7 +429,8 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
             
             DirectoryLayout dirLayout = new DirectoryLayout(path);
             if (!dirLayout.layouts.isEmpty()) {
-              addLayoutsFromDirectory(dirLayout, callback);
+              // For refresh, remove existing layouts from this directory first to prevent duplicates
+              refreshLayoutsFromDirectory(dirLayout, callback);
             } else {
               Toast.makeText(getContext(), "No layouts found in directory", Toast.LENGTH_SHORT).show();
             }
@@ -387,6 +439,78 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
       })
       .setNegativeButton("Cancel", null)
       .show();
+  }
+
+  /** Refresh layouts from a directory, removing duplicates first. */
+  private void refreshLayoutsFromDirectory(DirectoryLayout dirLayout, SelectionCallback callback) {
+    // First, remove any existing custom layouts that might be from this directory
+    // We'll do this by removing layouts with duplicate XML content
+    List<String> newXmlContents = new ArrayList<String>();
+    
+    // Load all XML files and prepare their content
+    File dir = new File(dirLayout.path);
+    File[] xmlFiles = dir.listFiles(new java.io.FilenameFilter() {
+      @Override
+      public boolean accept(File dir, String name) {
+        return name.toLowerCase().endsWith(".xml");
+      }
+    });
+    
+    if (xmlFiles != null) {
+      for (File xmlFile : xmlFiles) {
+        try {
+          FileInputStream fis = new FileInputStream(xmlFile);
+          byte[] data = new byte[(int) xmlFile.length()];
+          int bytesRead = fis.read(data);
+          fis.close();
+          
+          if (bytesRead > 0) {
+            String xmlContent = new String(data, 0, bytesRead, "UTF-8");
+            // Test that the XML is valid before adding to removal list
+            KeyboardData testLayout = KeyboardData.load_string_exn(xmlContent);
+            if (testLayout != null) {
+              newXmlContents.add(xmlContent.trim());
+            }
+          }
+        } catch (Exception e) {
+          android.util.Log.w("LayoutsPreference", "Failed to pre-load layout from " + xmlFile.getName() + ": " + e.getMessage());
+        }
+      }
+    }
+    
+    // Remove existing custom layouts that match any of the XML contents we're about to add
+    List<Layout> cleanedLayouts = new ArrayList<Layout>();
+    int removedCount = 0;
+    
+    for (Layout layout : _values) {
+      if (layout instanceof CustomLayout) {
+        String existingXml = ((CustomLayout)layout).xml.trim();
+        boolean isDuplicate = false;
+        for (String newXml : newXmlContents) {
+          if (existingXml.equals(newXml)) {
+            isDuplicate = true;
+            removedCount++;
+            break;
+          }
+        }
+        if (!isDuplicate) {
+          cleanedLayouts.add(layout);
+        }
+      } else {
+        // Keep named layouts and system layout
+        cleanedLayouts.add(layout);
+      }
+    }
+    
+    // Update the layout list with duplicates removed
+    set_values(cleanedLayouts, true);
+    
+    if (removedCount > 0) {
+      android.util.Log.i("LayoutsPreference", "Removed " + removedCount + " duplicate layouts before refresh");
+    }
+    
+    // Now add the fresh layouts from the directory
+    addLayoutsFromDirectory(dirLayout, callback);
   }
 
   /** Add all layouts from a directory as individual custom layouts. */
