@@ -450,6 +450,13 @@ public class FloatingKeyboard2 extends InputMethodService
     }
 
     android.util.Log.d("juloo.keyboard2.fork", "Switching to layout by name: " + layoutName);
+    android.util.Log.d("juloo.keyboard2.fork", "Available layouts (" + _config.layouts.size() + " total):");
+    for (int j = 0; j < _config.layouts.size(); j++) {
+      KeyboardData layoutDebug = _config.layouts.get(j);
+      if (layoutDebug != null && layoutDebug.name != null) {
+        android.util.Log.d("juloo.keyboard2.fork", "  [" + j + "] '" + layoutDebug.name + "'");
+      }
+    }
 
     // Find matching layout in available layouts
     for (int i = 0; i < _config.layouts.size(); i++) {
@@ -474,10 +481,15 @@ public class FloatingKeyboard2 extends InputMethodService
   
   private String normalizeLayoutName(String name) {
     if (name == null) return "";
+    
     // Convert to lowercase, replace spaces with underscores, remove non-alphanumeric chars (except underscores)
-    return name.toLowerCase()
-               .replaceAll("\\s+", "_")
-               .replaceAll("[^a-z0-9_]", "");
+    String step1 = name.toLowerCase();
+    String step2 = step1.replaceAll("\\s+", "_");
+    String step3 = step2.replaceAll("[^a-z0-9_]", "");
+    
+    android.util.Log.d("juloo.keyboard2.fork", "Layout normalization: '" + name + "' -> '" + step1 + "' -> '" + step2 + "' -> '" + step3 + "'");
+    
+    return step3;
   }
 
   private void switch_to_docked_ime()
@@ -1584,8 +1596,16 @@ public class FloatingKeyboard2 extends InputMethodService
           PixelFormat.TRANSLUCENT);
       
       _toggleLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
-      _toggleLayoutParams.x = _floatingLayoutParams.x + HANDLE_MARGIN_SIDE_DP; // Same left margin as in main window
-      _toggleLayoutParams.y = _floatingLayoutParams.y + HANDLE_MARGIN_TOP_DP; // Same top margin as in main window
+      
+      // Calculate the exact position of the visual toggle handle in the main window
+      // The toggle is positioned at: window position + container margin + centering offset
+      int touchWidth = (int) (screenWidth * HANDLE_TOUCH_WIDTH_SCREEN_PERCENT);
+      int visualWidth = handleWidth; // Already calculated above
+      int centeringOffsetX = (touchWidth - visualWidth) / 2;
+      int centeringOffsetY = (HANDLE_TOUCH_HEIGHT_DP - HANDLE_HEIGHT_DP) / 2;
+      
+      _toggleLayoutParams.x = _floatingLayoutParams.x + HANDLE_MARGIN_SIDE_DP + centeringOffsetX;
+      _toggleLayoutParams.y = _floatingLayoutParams.y + HANDLE_MARGIN_TOP_DP + centeringOffsetY;
       
       _windowManager.addView(_toggleButtonWindow, _toggleLayoutParams);
       
