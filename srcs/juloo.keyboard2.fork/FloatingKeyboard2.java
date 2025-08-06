@@ -42,6 +42,7 @@ public class FloatingKeyboard2 extends InputMethodService
   // Touch area constants for better usability
   private static final int HANDLE_TOUCH_HEIGHT_DP = 48; // Double the visual height for easier targeting
   private static final float HANDLE_TOUCH_WIDTH_SCREEN_PERCENT = 0.125f; // Halved from 0.25f
+  
   private Keyboard2View _keyboardView;
   private KeyEventHandler _keyeventhandler;
   private KeyboardData _currentSpecialLayout;
@@ -1174,7 +1175,6 @@ public class FloatingKeyboard2 extends InputMethodService
               
               _floatingLayoutParams.x = newX;
               _floatingLayoutParams.y = newY;
-              
               _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
               
               // Force keyboard redraw with new dimensions
