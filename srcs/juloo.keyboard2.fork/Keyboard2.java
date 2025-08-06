@@ -495,6 +495,17 @@ public class Keyboard2 extends InputMethodService
         case TOGGLE_FLOATING:
           switch_to_floating_ime();
           break;
+
+        case SWITCH_TO_LAYOUT:
+          // This should never be called since SWITCH_TO_LAYOUT uses handle_event_key_with_value
+          break;
+      }
+    }
+
+    public void handle_event_key_with_value(KeyValue keyValue)
+    {
+      if (keyValue.getEvent() == KeyValue.Event.SWITCH_TO_LAYOUT) {
+        switch_to_layout_by_name(keyValue.getLayoutName());
       }
     }
 
@@ -558,6 +569,76 @@ public class Keyboard2 extends InputMethodService
         get_imm().showInputMethodPicker();
       }
     }
+  }
+
+  private void switch_to_layout_by_name(String layoutName)
+  {
+    if (layoutName == null || layoutName.isEmpty()) {
+      android.util.Log.w("juloo.keyboard2.fork", "Cannot switch to layout: name is null or empty");
+      return;
+    }
+
+    android.util.Log.d("juloo.keyboard2.fork", "Switching to layout by name: " + layoutName);
+
+    // Find matching layout in available layouts
+    for (int i = 0; i < _config.layouts.size(); i++) {
+      KeyboardData layout = _config.layouts.get(i);
+      if (layout != null && layout.name != null) {
+        // Compare layout names (case-insensitive, handle spaces/underscores)
+        String normalizedLayoutName = layout.name.toLowerCase().replaceAll("\\s+", "_");
+        String normalizedTargetName = layoutName.toLowerCase().replaceAll("\\s+", "_");
+        
+        if (normalizedLayoutName.equals(normalizedTargetName) || 
+            normalizedLayoutName.contains(normalizedTargetName) ||
+            normalizedTargetName.contains(normalizedLayoutName)) {
+          android.util.Log.d("juloo.keyboard2.fork", "Found matching layout at index " + i + ": " + layout.name);
+          setTextLayout(i);
+          return;
+        }
+      }
+    }
+
+    // If no exact match found, try matching against layout resource names
+    String[] layoutValues = getResources().getStringArray(R.array.pref_layout_values);
+    String[] layoutEntries = getResources().getStringArray(R.array.pref_layout_entries);
+    
+    for (int i = 0; i < layoutValues.length && i < layoutEntries.length; i++) {
+      String layoutValue = layoutValues[i];
+      String layoutEntry = layoutEntries[i];
+      
+      // Normalize and compare layout value names
+      String normalizedValue = layoutValue.toLowerCase().replaceAll("_", " ");
+      String normalizedEntry = layoutEntry.toLowerCase();
+      String normalizedTarget = layoutName.toLowerCase().replaceAll("_", " ");
+      
+      if (normalizedValue.contains(normalizedTarget) || 
+          normalizedEntry.contains(normalizedTarget) ||
+          normalizedTarget.contains(normalizedValue)) {
+        
+        // Find this layout in the config layouts
+        try {
+          int resourceId = getResources().getIdentifier(layoutValue, "xml", getPackageName());
+          if (resourceId != 0) {
+            KeyboardData targetLayout = KeyboardData.load(getResources(), resourceId);
+            if (targetLayout != null) {
+              // Find or add this layout to the config
+              for (int j = 0; j < _config.layouts.size(); j++) {
+                if (_config.layouts.get(j) == targetLayout) {
+                  android.util.Log.d("juloo.keyboard2.fork", "Found matching layout resource at index " + j + ": " + layoutEntry);
+                  setTextLayout(j);
+                  return;
+                }
+              }
+            }
+          }
+        } catch (Exception e) {
+          android.util.Log.w("juloo.keyboard2.fork", "Error loading layout resource: " + layoutValue, e);
+        }
+      }
+    }
+
+    android.util.Log.w("juloo.keyboard2.fork", "Could not find layout matching name: " + layoutName);
+    Toast.makeText(this, "Layout not found: " + layoutName, Toast.LENGTH_SHORT).show();
   }
 
   private View inflate_view(int layout)

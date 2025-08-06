@@ -99,7 +99,13 @@ public final class KeyEventHandler
     {
       case Char: send_text(String.valueOf(key.getChar())); break;
       case String: send_text(key.getString()); break;
-      case Event: _recv.handle_event_key(key.getEvent()); break;
+      case Event: 
+        if (key.getEvent() == KeyValue.Event.SWITCH_TO_LAYOUT) {
+          _recv.handle_event_key_with_value(key);
+        } else {
+          _recv.handle_event_key(key.getEvent());
+        }
+        break;
       case Keyevent: send_key_down_up(key.getKeyevent()); break;
       case Modifier: break;
       case Editing: handle_editing_key(key.getEditing()); break;
@@ -634,6 +640,7 @@ public final class KeyEventHandler
   public static interface IReceiver
   {
     public void handle_event_key(KeyValue.Event ev);
+    public void handle_event_key_with_value(KeyValue keyValue);
     public void set_shift_state(boolean state, boolean lock);
     public void set_compose_pending(boolean pending);
     public void selection_state_changed(boolean selection_is_ongoing);

@@ -108,6 +108,7 @@
     <string name="key_descr_change_method">Switch keyboard</string>
     <string name="key_descr_voice_typing">Voice typing</string>
     <string name="key_descr_toggle_floating">Toggle floating keyboard</string>
+    <string name="key_descr_toggle_persistence">Toggle keyboard persistence</string>
     <string name="key_descr_copy">Copy</string>
     <string name="key_descr_paste">Paste</string>
     <string name="key_descr_cut">Cut</string>
