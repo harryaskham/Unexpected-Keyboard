@@ -24,6 +24,7 @@ public final class KeyValue implements Comparable<KeyValue>
     SWITCH_VOICE_TYPING,
     SWITCH_VOICE_TYPING_CHOOSER,
     TOGGLE_FLOATING,
+    SWITCH_TO_LAYOUT,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -184,6 +185,12 @@ public final class KeyValue implements Comparable<KeyValue>
   public Event getEvent()
   {
     return Event.values()[(_code & VALUE_BITS)];
+  }
+
+  /** Defined only when [getKind() == Kind.Event] and [getEvent() == Event.SWITCH_TO_LAYOUT]. */
+  public String getLayoutName()
+  {
+    return _payload.toString();
   }
 
   /** Defined only when [getKind() == Kind.Modifier]. */
@@ -516,6 +523,17 @@ public final class KeyValue implements Comparable<KeyValue>
 
   public static KeyValue getSpecialKeyByName(String name)
   {
+    // Handle dynamic switch_to_layout_<layoutName> actions
+    if (name.startsWith("switch_to_layout_")) {
+      String layoutName = name.substring("switch_to_layout_".length());
+      // Clean layout name - replace underscores with spaces and ensure valid characters
+      String cleanLayoutName = layoutName.replaceAll("_", " ");
+      // Create a compact display name by taking first few characters
+      String displayName = cleanLayoutName.length() > 6 ? cleanLayoutName.substring(0, 6) + "…" : cleanLayoutName;
+      return new KeyValue(layoutName, Kind.Event, Event.SWITCH_TO_LAYOUT.ordinal(), 
+                         FLAG_SPECIAL | FLAG_SECONDARY | FLAG_SMALLER_FONT);
+    }
+    
     switch (name)
     {
       /* These symbols have special meaning when in `srcs/layouts` and are
