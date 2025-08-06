@@ -544,18 +544,30 @@ public class Keyboard2 extends InputMethodService
   {
     android.util.Log.d("juloo.keyboard2.fork", "Switching to floating IME");
     
-    // Switch to the floating keyboard IME
-    InputMethodManager imm = get_imm();
+    // Use proper InputMethodService.switchInputMethod() instead of InputMethodManager.setInputMethod()
     String floatingImeId = getPackageName() + "/.FloatingKeyboard2";
     
     try {
-      // Request to switch to the floating IME
-      imm.setInputMethod(getConnectionToken(), floatingImeId);
-      android.util.Log.d("juloo.keyboard2.fork", "Requested switch to floating IME: " + floatingImeId);
+      // Direct switch using InputMethodService method - more reliable than setInputMethod
+      if (android.os.Build.VERSION.SDK_INT >= 28) {
+        // For API 28+, switchInputMethod with subtype
+        switchInputMethod(floatingImeId, null);
+      } else {
+        // For older APIs, use the simpler switchInputMethod
+        switchInputMethod(floatingImeId);
+      }
+      android.util.Log.d("juloo.keyboard2.fork", "Successfully switched to floating IME: " + floatingImeId);
     } catch (Exception e) {
       android.util.Log.e("juloo.keyboard2.fork", "Failed to switch to floating IME: " + e.getMessage());
-      // Fallback - show IME picker so user can manually select
-      imm.showInputMethodPicker();
+      // More specific fallback - try the old method before showing picker
+      try {
+        InputMethodManager imm = get_imm();
+        imm.setInputMethod(getConnectionToken(), floatingImeId);
+        android.util.Log.d("juloo.keyboard2.fork", "Fallback switch successful");
+      } catch (Exception e2) {
+        android.util.Log.e("juloo.keyboard2.fork", "Fallback failed, showing IME picker: " + e2.getMessage());
+        get_imm().showInputMethodPicker();
+      }
     }
   }
 

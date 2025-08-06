@@ -439,18 +439,30 @@ public class FloatingKeyboard2 extends InputMethodService
   {
     android.util.Log.d("juloo.keyboard2.fork", "Switching to docked IME");
     
-    // Switch to the main (docked) keyboard IME
-    InputMethodManager imm = (InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+    // Use proper InputMethodService.switchInputMethod() instead of InputMethodManager.setInputMethod()
     String dockedImeId = getPackageName() + "/.Keyboard2";
     
     try {
-      // Request to switch to the docked IME
-      imm.setInputMethod(getWindow().getWindow().getAttributes().token, dockedImeId);
-      android.util.Log.d("juloo.keyboard2.fork", "Requested switch to docked IME: " + dockedImeId);
+      // Direct switch using InputMethodService method - more reliable than setInputMethod
+      if (android.os.Build.VERSION.SDK_INT >= 28) {
+        // For API 28+, switchInputMethod with subtype
+        switchInputMethod(dockedImeId, null);
+      } else {
+        // For older APIs, use the simpler switchInputMethod
+        switchInputMethod(dockedImeId);
+      }
+      android.util.Log.d("juloo.keyboard2.fork", "Successfully switched to docked IME: " + dockedImeId);
     } catch (Exception e) {
       android.util.Log.e("juloo.keyboard2.fork", "Failed to switch to docked IME: " + e.getMessage());
-      // Fallback - show IME picker so user can manually select
-      imm.showInputMethodPicker();
+      // More specific fallback - try the old method before showing picker
+      try {
+        InputMethodManager imm = (InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+        imm.setInputMethod(getWindow().getWindow().getAttributes().token, dockedImeId);
+        android.util.Log.d("juloo.keyboard2.fork", "Fallback switch successful");
+      } catch (Exception e2) {
+        android.util.Log.e("juloo.keyboard2.fork", "Fallback failed, showing IME picker: " + e2.getMessage());
+        ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showInputMethodPicker();
+      }
     }
   }
 
@@ -1106,10 +1118,12 @@ public class FloatingKeyboard2 extends InputMethodService
       passthroughTouchContainer.setOnTouchListener(new PassthroughToggleTouchListener(passthroughToggle));
       addView(passthroughTouchContainer, touchParams);
       
-      // Initially hidden since we start in normal mode
-      passthroughTouchContainer.setVisibility(View.GONE);
+      // Always visible - toggle behavior will handle enable/disable states
+      passthroughTouchContainer.setVisibility(View.VISIBLE);
       passthroughToggle.setElevation(20.0f);
       
+      // Set initial appearance based on current state
+      updateToggleButtonAppearance();
       android.util.Log.d("FloatingKeyboard", "Passthrough toggle created and added - Visual: " + visualWidth + "x" + HANDLE_HEIGHT_DP + ", Touch: " + touchWidth + "x" + HANDLE_TOUCH_HEIGHT_DP);
       
       // Test if handle gets layout correctly
@@ -1146,9 +1160,14 @@ public class FloatingKeyboard2 extends InputMethodService
             // Restore original handle color
             handleView.setBackground(originalDrawable);
             
-            // Toggle back to normal mode
-            exitPassthroughMode();
-            showDebugToast("Keyboard touches re-enabled");
+            // Toggle between enabled and disabled states
+            if (passthroughMode) {
+              exitPassthroughMode();
+              showDebugToast("Keyboard enabled");
+            } else {
+              enterPassthroughMode();
+              showDebugToast("Keyboard disabled (passthrough)");
+            }
             return true;
             
           case MotionEvent.ACTION_CANCEL:
@@ -1203,53 +1222,55 @@ public class FloatingKeyboard2 extends InputMethodService
               float deltaX = event.getRawX() - resizeStartX;
               float deltaY = event.getRawY() - resizeStartY;
               
-              // Calculate width percentage based on horizontal movement from initial values
-              // Drag right = bigger (positive deltaX increases width)
-              // Drag left = smaller (negative deltaX decreases width)
-              float widthChange = deltaX / 1200.0f; // Reduced sensitivity (1200px = 50% change)
-              float newWidthScale = (initialWidthPercent / 100.0f) + widthChange;
-              newWidthScale = Math.max(0.5f, Math.min(1.0f, newWidthScale)); // Clamp 50%-100%
-              int newWidthPercent = (int)(newWidthScale * 100);
-              
-              // Calculate height percentage based on vertical movement from initial values
-              // Drag up = bigger (negative deltaY increases height)
-              // Drag down = smaller (positive deltaY decreases height)
-              float heightChange = -deltaY / 800.0f; // Reduced sensitivity (800px = full range)
-              
-              // Get the max height for current orientation
-              int maxHeight = _config.orientation_landscape ? 50 : 50; // Same max as settings
-              int minHeight = 10;
-              
-              float newHeightScale = (initialHeightPercent / 100.0f) + heightChange;
-              newHeightScale = Math.max(minHeight / 100.0f, Math.min(maxHeight / 100.0f, newHeightScale));
-              int newHeightPercent = (int)(newHeightScale * 100);
-              
-              // Update both dimensions in config
-              updateFloatingKeyboardWidth(newWidthPercent);
-              updateFloatingKeyboardHeight(newHeightPercent);
-              
-              // Adjust window Y position to make keyboard grow upward from resize handle
-              // When dragging up (negative deltaY), keyboard gets taller and should move up
-              // When dragging down (positive deltaY), keyboard gets shorter and should move down
-              int newY = initialWindowY + (int)(deltaY * 0.25f); // Reduced sensitivity to match resize
-              
-              // Get screen dimensions for bounds checking during resize
+              // Get screen dimensions for calculations
               DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
               int screenWidth = displayMetrics.widthPixels;
               int screenHeight = displayMetrics.heightPixels;
-              int currentKeyboardWidth = _floatingContainer.getWidth();
-              int currentKeyboardHeight = _floatingContainer.getHeight();
               
-              // Clamp resize position to screen bounds
-              _floatingLayoutParams.x = Math.max(0, Math.min(_floatingLayoutParams.x, screenWidth - currentKeyboardWidth));
-              _floatingLayoutParams.y = Math.max(0, Math.min(newY, screenHeight - currentKeyboardHeight));
+              // Calculate new pixel-based dimensions directly from touch movement
+              // Drag right = bigger (positive deltaX increases width)
+              // Drag left = smaller (negative deltaX decreases width)
+              int newKeyboardWidth = Math.round(initialWidth + deltaX);
               
+              // Drag up = bigger (negative deltaY increases height)  
+              // Drag down = smaller (positive deltaY decreases height)
+              int newKeyboardHeight = Math.round(initialHeight - deltaY);
+              
+              // Apply pixel-based constraints
+              int minKeyboardWidth = Math.round(screenWidth * 0.3f);  // Minimum 30% screen width
+              int maxKeyboardWidth = screenWidth;                     // Maximum 100% screen width
+              int minKeyboardHeight = Math.round(screenHeight * 0.1f); // Minimum 10% screen height
+              int maxKeyboardHeight = Math.round(screenHeight * 0.6f); // Maximum 60% screen height
+              
+              // Clamp to constraints
+              newKeyboardWidth = Math.max(minKeyboardWidth, Math.min(newKeyboardWidth, maxKeyboardWidth));
+              newKeyboardHeight = Math.max(minKeyboardHeight, Math.min(newKeyboardHeight, maxKeyboardHeight));
+              
+              // Convert pixel dimensions back to percentages for config storage
+              float newWidthPercent = (float)newKeyboardWidth / screenWidth * 100f;
+              float newHeightPercent = (float)newKeyboardHeight / screenHeight * 100f;
+              
+              // Update dimensions in config (rounded to int for preferences)
+              updateFloatingKeyboardWidth(Math.round(newWidthPercent));
+              updateFloatingKeyboardHeight(Math.round(newHeightPercent));
+              
+              // Calculate new window position to make resize handle follow the corner
+              // The resize handle should stay under the user's finger during resize
+              int newX = _floatingLayoutParams.x;
+              int newY = initialWindowY - (newKeyboardHeight - initialHeight); // Move window up when keyboard grows taller
+              
+              // Apply bounds checking to prevent off-screen positioning
+              newX = Math.max(0, Math.min(newX, screenWidth - newKeyboardWidth));
+              newY = Math.max(0, Math.min(newY, screenHeight - newKeyboardHeight));
+              
+              _floatingLayoutParams.x = newX;
+              _floatingLayoutParams.y = newY;
               _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
               
               // Force keyboard redraw with new dimensions
               refreshFloatingKeyboard();
               
-              android.util.Log.d("FloatingKeyboard", "Resize - Width: " + newWidthPercent + "% Height: " + newHeightPercent + "% (deltaX: " + deltaX + " deltaY: " + deltaY + ")");
+              android.util.Log.d("FloatingKeyboard", "Pixel-based resize - " + newKeyboardWidth + "x" + newKeyboardHeight + "px (" + Math.round(newWidthPercent) + "%x" + Math.round(newHeightPercent) + "%) delta: " + Math.round(deltaX) + "x" + Math.round(deltaY) + "px");
               
               return true;
             }
@@ -1262,8 +1283,8 @@ public class FloatingKeyboard2 extends InputMethodService
             isResizing = false;
             // Save final position after resize
             saveFloatingKeyboardPosition();
-            android.util.Log.d("FloatingKeyboard", "Resize end, final scale: " + currentScale);
-            showDebugToast("Resize ended - final scale: " + String.format("%.1f", currentScale) + "x (applied: " + String.format("%.1f", ResizableFloatingContainer.this.getScaleX()) + "x)");
+            android.util.Log.d("FloatingKeyboard", "Resize end - final dimensions: " + ResizableFloatingContainer.this.getWidth() + "x" + ResizableFloatingContainer.this.getHeight() + "px");
+            showDebugToast("Resize ended - " + ResizableFloatingContainer.this.getWidth() + "x" + ResizableFloatingContainer.this.getHeight() + "px");
             return true;
         }
         
@@ -1300,9 +1321,9 @@ public class FloatingKeyboard2 extends InputMethodService
         passthroughMode = true;
         
         try {
-          // Make the entire main window not touchable
-          _floatingLayoutParams.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
-          windowManager.updateViewLayout(this, _floatingLayoutParams);
+          // Make the main window not touchable except for handles (via touch interception)
+          // We don't use FLAG_NOT_TOUCHABLE since we need the toggle button to remain touchable
+          // Touch interception in onInterceptTouchEvent will handle passthrough behavior
           
           // Dim the keyboard to show it's in passthrough mode
           if (_floatingKeyboardView != null) {
@@ -1312,15 +1333,14 @@ public class FloatingKeyboard2 extends InputMethodService
           // Update handle opacity for disabled state
           updateHandleOpacity(false);
           
-          // Hide the toggle button from the main window
-          if (passthroughTouchContainer != null) {
-            passthroughTouchContainer.setVisibility(View.GONE);
-          }
+          // Update toggle button appearance to show disabled state
+          updateToggleButtonAppearance();
           
-          // Create a separate touchable window for the toggle button
-          createToggleButtonWindow();
+          // Keep the toggle button visible in main window (always-present feature)
+          // No need to create separate window since the toggle should remain touchable
+          // The toggle button stays in the main window but remains touchable
           
-          android.util.Log.d("FloatingKeyboard", "Entered passthrough mode - main window not touchable, separate toggle window created");
+          android.util.Log.d("FloatingKeyboard", "Entered passthrough mode - keyboard dimmed, toggle button remains visible");
         } catch (Exception e) {
           android.util.Log.e("FloatingKeyboard", "Error entering passthrough mode: " + e.getMessage());
         }
@@ -1332,12 +1352,8 @@ public class FloatingKeyboard2 extends InputMethodService
         passthroughMode = false;
         
         try {
-          // Remove the separate toggle button window
-          removeToggleButtonWindow();
-          
-          // Restore main window touchability
-          _floatingLayoutParams.flags &= ~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
-          windowManager.updateViewLayout(this, _floatingLayoutParams);
+          // Main window touchability was not changed, so no need to restore it
+          // Just restore keyboard appearance
           
           // Restore keyboard full opacity
           if (_floatingKeyboardView != null) {
@@ -1347,10 +1363,31 @@ public class FloatingKeyboard2 extends InputMethodService
           // Update handle opacity for active state
           updateHandleOpacity(true);
           
-          android.util.Log.d("FloatingKeyboard", "Exited passthrough mode - main window touchable, keyboard restored, toggle window removed");
+          // Update toggle button appearance to show enabled state
+          updateToggleButtonAppearance();
+          
+          android.util.Log.d("FloatingKeyboard", "Exited passthrough mode - keyboard restored to full opacity");
         } catch (Exception e) {
           android.util.Log.e("FloatingKeyboard", "Error exiting passthrough mode: " + e.getMessage());
         }
+      }
+    }
+
+    private void updateToggleButtonAppearance() {
+      if (passthroughToggle != null) {
+        GradientDrawable toggleDrawable = new GradientDrawable();
+        toggleDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density);
+        
+        if (passthroughMode) {
+          // Disabled state - use a different color (orange/red to indicate disabled)
+          toggleDrawable.setColor(0xFFBF616A); // Nord red - indicates disabled
+        } else {
+          // Enabled state - use normal inactive color
+          toggleDrawable.setColor(HANDLE_COLOR_INACTIVE); // Nord blue - indicates enabled
+        }
+        
+        passthroughToggle.setBackground(toggleDrawable);
+        android.util.Log.d("FloatingKeyboard", "Updated toggle button appearance - passthrough mode: " + passthroughMode);
       }
     }
 
@@ -1392,7 +1429,7 @@ public class FloatingKeyboard2 extends InputMethodService
               // This is a gap touch - enter passthrough mode
               android.util.Log.d("FloatingKeyboard", "Gap touch detected - entering passthrough mode");
               enterPassthroughMode();
-              showDebugToast("Passthrough mode enabled - tap top-left button to re-enable keyboard");
+              showDebugToast("Keyboard disabled - tap top-left toggle button to re-enable");
               return true; // Intercept this touch and consume it
             } else {
               android.util.Log.d("FloatingKeyboard", "Key touch detected - normal processing");
