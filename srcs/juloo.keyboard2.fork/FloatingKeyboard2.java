@@ -42,6 +42,7 @@ public class FloatingKeyboard2 extends InputMethodService
   // Touch area constants for better usability
   private static final int HANDLE_TOUCH_HEIGHT_DP = 48; // Double the visual height for easier targeting
   private static final float HANDLE_TOUCH_WIDTH_SCREEN_PERCENT = 0.125f; // Halved from 0.25f
+  
   private Keyboard2View _keyboardView;
   private KeyEventHandler _keyeventhandler;
   private KeyboardData _currentSpecialLayout;
@@ -507,6 +508,40 @@ public class FloatingKeyboard2 extends InputMethodService
       }
     }
   }
+
+  private void clampKeyboardPositionToScreen() {
+    if (_floatingLayoutParams == null || _floatingContainer == null) {
+      return;
+    }
+    
+    // Get screen dimensions and keyboard dimensions
+    DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+    int screenWidth = displayMetrics.widthPixels;
+    int screenHeight = displayMetrics.heightPixels;
+    int keyboardWidth = _floatingContainer.getWidth();
+    int keyboardHeight = _floatingContainer.getHeight();
+    
+    // Check if keyboard dimensions are valid (measured)
+    if (keyboardWidth <= 0 || keyboardHeight <= 0) {
+      android.util.Log.d("FloatingKeyboard", "Keyboard not yet measured, skipping bounds check");
+      return;
+    }
+    
+    // Calculate clamped position
+    int clampedX = Math.max(0, Math.min(_floatingLayoutParams.x, screenWidth - keyboardWidth));
+    int clampedY = Math.max(0, Math.min(_floatingLayoutParams.y, screenHeight - keyboardHeight));
+    
+    // Only update if position changed
+    if (clampedX != _floatingLayoutParams.x || clampedY != _floatingLayoutParams.y) {
+      android.util.Log.d("FloatingKeyboard", "Clamping keyboard position from " + _floatingLayoutParams.x + "," + _floatingLayoutParams.y + " to " + clampedX + "," + clampedY);
+      _floatingLayoutParams.x = clampedX;
+      _floatingLayoutParams.y = clampedY;
+      _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+      
+      // Save the corrected position
+      saveFloatingKeyboardPosition();
+    }
+  }
   
   private void refreshFloatingKeyboard() {
     if (_floatingKeyboardView != null && _floatingKeyboardActive) {
@@ -521,6 +556,14 @@ public class FloatingKeyboard2 extends InputMethodService
       if (_floatingContainer != null) {
         _floatingContainer.requestLayout();
         _floatingContainer.invalidate();
+        
+        // Apply bounds checking after resize to prevent off-screen positioning
+        _floatingContainer.post(new Runnable() {
+          @Override
+          public void run() {
+            clampKeyboardPositionToScreen();
+          }
+        });
       }
     }
   }
@@ -782,8 +825,15 @@ public class FloatingKeyboard2 extends InputMethodService
       _floatingLayoutParams = params;
       _floatingContainer = container;
       
-      dragTouchContainer.setOnTouchListener(new FloatingDragTouchListener(dragHandle));
+      // Apply bounds checking after keyboard is added and measured
+      container.post(new Runnable() {
+        @Override
+        public void run() {
+          clampKeyboardPositionToScreen();
+        }
+      });
       
+      dragTouchContainer.setOnTouchListener(new FloatingDragTouchListener(dragHandle));
       android.util.Log.d("FloatingKeyboard", "Drag handle created - Visual: " + visualWidth + "x" + HANDLE_HEIGHT_DP + ", Touch: " + touchWidth + "x" + HANDLE_TOUCH_HEIGHT_DP);
       container.setWindowManager(_windowManager, params);
       
@@ -859,8 +909,20 @@ public class FloatingKeyboard2 extends InputMethodService
           float deltaX = event.getRawX() - startTouchX;
           float deltaY = event.getRawY() - startTouchY;
           
-          _floatingLayoutParams.x = (int) (startX + deltaX);
-          _floatingLayoutParams.y = (int) (startY + deltaY);
+          // Calculate new position with bounds checking
+          int newX = (int) (startX + deltaX);
+          int newY = (int) (startY + deltaY);
+          
+          // Get screen dimensions and keyboard dimensions for bounds checking
+          DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+          int screenWidth = displayMetrics.widthPixels;
+          int screenHeight = displayMetrics.heightPixels;
+          int keyboardWidth = _floatingContainer.getWidth();
+          int keyboardHeight = _floatingContainer.getHeight();
+          
+          // Clamp position to screen bounds (prevent off-screen movement)
+          _floatingLayoutParams.x = Math.max(0, Math.min(newX, screenWidth - keyboardWidth));
+          _floatingLayoutParams.y = Math.max(0, Math.min(newY, screenHeight - keyboardHeight));
           
           _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
           return true;
@@ -1098,7 +1160,19 @@ public class FloatingKeyboard2 extends InputMethodService
               // Adjust window Y position to make keyboard grow upward from resize handle
               // When dragging up (negative deltaY), keyboard gets taller and should move up
               // When dragging down (positive deltaY), keyboard gets shorter and should move down
-              _floatingLayoutParams.y = initialWindowY + (int)(deltaY * 0.25f); // Reduced sensitivity to match resize
+              int newY = initialWindowY + (int)(deltaY * 0.25f); // Reduced sensitivity to match resize
+              
+              // Get screen dimensions for bounds checking during resize
+              DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+              int screenWidth = displayMetrics.widthPixels;
+              int screenHeight = displayMetrics.heightPixels;
+              int currentKeyboardWidth = _floatingContainer.getWidth();
+              int currentKeyboardHeight = _floatingContainer.getHeight();
+              
+              // Clamp resize position to screen bounds
+              _floatingLayoutParams.x = Math.max(0, Math.min(_floatingLayoutParams.x, screenWidth - currentKeyboardWidth));
+              _floatingLayoutParams.y = Math.max(0, Math.min(newY, screenHeight - currentKeyboardHeight));
+              
               _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
               
               // Force keyboard redraw with new dimensions
