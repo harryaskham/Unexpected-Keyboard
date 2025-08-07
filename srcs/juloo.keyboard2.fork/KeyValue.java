@@ -191,6 +191,9 @@ public final class KeyValue implements Comparable<KeyValue>
   /** Defined only when [getKind() == Kind.Event] and [getEvent() == Event.SWITCH_TO_LAYOUT]. */
   public String getLayoutName()
   {
+    if (_payload instanceof SwitchToLayoutData) {
+      return ((SwitchToLayoutData) _payload).layoutName;
+    }
     return _payload.toString();
   }
 
@@ -524,11 +527,11 @@ public final class KeyValue implements Comparable<KeyValue>
         // For switch_to_layout keys, we need special handling
         if (keycode.startsWith("switch_to_layout_")) {
           android.util.Log.d("juloo.keyboard2.fork", "Parsing symbol:keycode - symbol: '" + symbol + "', keycode: '" + keycode + "'");
-          // Create KeyValue using keycode for functionality, but display the symbol
+          // Create KeyValue with composite data holding both layout name and display symbol
           String layoutName = keycode.substring("switch_to_layout_".length());
-          KeyValue kv = new KeyValue(layoutName, Kind.Event, Event.SWITCH_TO_LAYOUT.ordinal(), 
-                                    FLAG_SPECIAL | FLAG_SECONDARY | FLAG_SMALLER_FONT);
-          return kv.withSymbol(symbol); // Use the visual symbol for display
+          SwitchToLayoutData data = new SwitchToLayoutData(layoutName, symbol);
+          return new KeyValue(data, Kind.Event, Event.SWITCH_TO_LAYOUT.ordinal(), 
+                             FLAG_SPECIAL | FLAG_SECONDARY | FLAG_SMALLER_FONT);
         }
         
         // For other keys, try to get the keycode version but display the symbol
@@ -919,4 +922,38 @@ public final class KeyValue implements Comparable<KeyValue>
       return _symbol.compareTo(snd._symbol);
     }
   };
+
+  /** Data holder for SWITCH_TO_LAYOUT keys that need both layout name and display symbol */
+  private static class SwitchToLayoutData implements Comparable<SwitchToLayoutData> {
+    public final String layoutName;
+    public final String displaySymbol;
+    
+    public SwitchToLayoutData(String layoutName, String displaySymbol) {
+      this.layoutName = layoutName;
+      this.displaySymbol = displaySymbol;
+    }
+    
+    @Override
+    public String toString() {
+      return displaySymbol; // Used by getString() for display
+    }
+    
+    @Override
+    public int compareTo(SwitchToLayoutData other) {
+      return layoutName.compareTo(other.layoutName);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) return true;
+      if (obj == null || getClass() != obj.getClass()) return false;
+      SwitchToLayoutData that = (SwitchToLayoutData) obj;
+      return layoutName.equals(that.layoutName) && displaySymbol.equals(that.displaySymbol);
+    }
+    
+    @Override
+    public int hashCode() {
+      return layoutName.hashCode() * 31 + displaySymbol.hashCode();
+    }
+  }
 }
