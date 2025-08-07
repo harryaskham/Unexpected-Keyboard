@@ -80,12 +80,32 @@ public class Theme
   }
 
   static Typeface _key_font = null;
+  static Typeface _fira_code_font = null;
 
   static public Typeface getKeyFont(Context context)
   {
     if (_key_font == null)
       _key_font = Typeface.createFromAsset(context.getAssets(), "special_font.ttf");
     return _key_font;
+  }
+
+  static public Typeface getSelectedFont(Context context, String fontSelection)
+  {
+    if ("fira_code".equals(fontSelection))
+    {
+      if (_fira_code_font == null)
+      {
+        try {
+          _fira_code_font = Typeface.createFromAsset(context.getAssets(), "fira_code_nerd_font.ttf");
+        } catch (Exception e) {
+          // Fallback to default if Fira Code font fails to load
+          return Typeface.DEFAULT;
+        }
+      }
+      return _fira_code_font;
+    }
+    // Default font selection
+    return Typeface.DEFAULT;
   }
 
   public static final class Computed
@@ -102,10 +122,15 @@ public class Theme
 
     public Computed(Theme theme, Config config, float keyWidth, KeyboardData layout)
     {
-      this(theme, config, keyWidth, layout, false);
+      this(theme, config, keyWidth, layout, false, null);
     }
 
     public Computed(Theme theme, Config config, float keyWidth, KeyboardData layout, boolean floatingMode)
+    {
+      this(theme, config, keyWidth, layout, floatingMode, null);
+    }
+
+    public Computed(Theme theme, Config config, float keyWidth, KeyboardData layout, boolean floatingMode, Context context)
     {
       // Rows height is proportional to the keyboard height, meaning it doesn't
       // change for layouts with more or less rows. 3.95 is the usual height of
@@ -122,8 +147,8 @@ public class Theme
       // added on the right and on the bottom of every keys.
       margin_top = config.marginTop + vertical_margin / 2;
       margin_left = horizontal_margin / 2;
-      key = new Key(theme, config, keyWidth, false);
-      key_activated = new Key(theme, config, keyWidth, true);
+      key = new Key(theme, config, keyWidth, false, context);
+      key_activated = new Key(theme, config, keyWidth, true, context);
       indication_paint = init_label_paint(config, null);
       indication_paint.setColor(theme.subLabelColor);
     }
@@ -145,6 +170,11 @@ public class Theme
 
       public Key(Theme theme, Config config, float keyWidth, boolean activated)
       {
+        this(theme, config, keyWidth, activated, null);
+      }
+
+      public Key(Theme theme, Config config, float keyWidth, boolean activated, Context context)
+      {
         bg_paint.setColor(activated ? theme.colorKeyActivated : theme.colorKey);
         if (config.borderConfig)
         {
@@ -161,9 +191,18 @@ public class Theme
         border_top_paint = init_border_paint(config, border_width, theme.keyBorderColorTop);
         border_right_paint = init_border_paint(config, border_width, theme.keyBorderColorRight);
         border_bottom_paint = init_border_paint(config, border_width, theme.keyBorderColorBottom);
-        _label_paint = init_label_paint(config, null);
+
+        // Choose font based on user preference, fallback to default/special fonts
+        Typeface userFont = null;
+        if (context != null) {
+          userFont = getSelectedFont(context, config.selected_font);
+        }
+        
+        // Regular label paint uses the selected font if available
+        _label_paint = init_label_paint(config, userFont);
+        // Special label paint uses the special font for backward compatibility with symbols
         _special_label_paint = init_label_paint(config, _key_font);
-        _sublabel_paint = init_label_paint(config, null);
+        _sublabel_paint = init_label_paint(config, userFont);
         _special_sublabel_paint = init_label_paint(config, _key_font);
         _label_alpha_bits = (config.labelBrightness & 0xFF) << 24;
       }

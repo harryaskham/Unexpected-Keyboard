@@ -74,6 +74,7 @@ public final class Config
   public int circle_sensitivity;
   public boolean clipboard_history_enabled;
   public boolean keyboard_persistence_enabled;
+  public String selected_font;
 
   // Dynamically set
   public boolean shouldOfferVoiceTyping;
@@ -191,6 +192,7 @@ public final class Config
     circle_sensitivity = Integer.valueOf(_prefs.getString("circle_sensitivity", "2"));
     clipboard_history_enabled = _prefs.getBoolean("clipboard_history_enabled", false);
     keyboard_persistence_enabled = _prefs.getBoolean("keyboard_persistence_enabled", false);
+    selected_font = _prefs.getString("font", "default");
 
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;

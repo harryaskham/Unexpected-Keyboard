@@ -96,4 +96,12 @@
     <item>number</item>
     <item>normal</item>
   </string-array>
+  <string-array name="pref_font_entries">
+    <item>@string/pref_font_e_default</item>
+    <item>@string/pref_font_e_fira_code</item>
+  </string-array>
+  <string-array name="pref_font_values">
+    <item>default</item>
+    <item>fira_code</item>
+  </string-array>
 </resources>

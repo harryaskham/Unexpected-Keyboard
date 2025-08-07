@@ -310,7 +310,7 @@ public class Keyboard2View extends View
     _marginRight = Math.max(_config.horizontal_margin, _insets_right);
     _marginBottom = _config.margin_bottom + _insets_bottom;
     _keyWidth = (width - _marginLeft - _marginRight) / _keyboard.keysWidth;
-    _tc = new Theme.Computed(_theme, _config, _keyWidth, _keyboard, isFloatingMode);
+    _tc = new Theme.Computed(_theme, _config, _keyWidth, _keyboard, isFloatingMode, getContext());
     // Compute the size of labels based on the width or the height of keys. The
     // margin around keys is taken into account. Keys normal aspect ratio is
     // assumed to be 3/2. It's generally more, the width computation is useful
