@@ -525,7 +525,13 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
       });
       
       if (xmlFiles != null) {
+        // Sort files by name for consistent ordering
+        Arrays.sort(xmlFiles, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+        
+        List<Layout> currentLayouts = new ArrayList<Layout>(_values);
         int addedCount = 0;
+        int replacedCount = 0;
+        
         for (File xmlFile : xmlFiles) {
           try {
             FileInputStream fis = new FileInputStream(xmlFile);
@@ -539,17 +545,31 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
               // Test that the XML is valid
               KeyboardData testLayout = KeyboardData.load_string_exn(xmlContent);
               if (testLayout != null) {
-                // Create a custom layout with a descriptive name
-                String layoutName = xmlFile.getName().replaceAll("\\.xml$", "");
                 CustomLayout customLayout = new CustomLayout(xmlContent, testLayout);
+                String layoutName = getLayoutDisplayName(testLayout);
                 
-                // Add this layout to the current list
-                List<Layout> currentLayouts = new ArrayList<Layout>(_values);
-                currentLayouts.add(customLayout);
-                set_values(currentLayouts, true);
+                // Check if a layout with this name already exists and replace it
+                boolean foundExisting = false;
+                for (int i = 0; i < currentLayouts.size(); i++) {
+                  Layout existingLayout = currentLayouts.get(i);
+                  String existingName = getLayoutDisplayName(existingLayout);
+                  
+                  if (layoutName.equals(existingName)) {
+                    // Replace existing layout with same name
+                    currentLayouts.set(i, customLayout);
+                    foundExisting = true;
+                    replacedCount++;
+                    android.util.Log.i("LayoutsPreference", "Replaced layout: " + layoutName);
+                    break;
+                  }
+                }
                 
-                addedCount++;
-                android.util.Log.i("LayoutsPreference", "Added layout: " + layoutName);
+                if (!foundExisting) {
+                  // Add new layout
+                  currentLayouts.add(customLayout);
+                  addedCount++;
+                  android.util.Log.i("LayoutsPreference", "Added layout: " + layoutName);
+                }
               }
             }
           } catch (Exception e) {
@@ -557,9 +577,30 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
           }
         }
         
-        Toast.makeText(getContext(), 
-            "Added " + addedCount + " layouts from directory", 
-            Toast.LENGTH_SHORT).show();
+        // Ensure we have at least one SystemLayout if no other layouts exist
+        boolean hasSystemLayout = false;
+        for (Layout layout : currentLayouts) {
+          if (layout instanceof SystemLayout) {
+            hasSystemLayout = true;
+            break;
+          }
+        }
+        
+        if (!hasSystemLayout && currentLayouts.isEmpty()) {
+          currentLayouts.add(0, new SystemLayout());
+        }
+        
+        // Sort all layouts by name (keeping SystemLayout first if present)
+        sortLayoutsByName(currentLayouts);
+        set_values(currentLayouts, true);
+        
+        String message = "Added " + addedCount + " layouts";
+        if (replacedCount > 0) {
+          message += ", replaced " + replacedCount + " existing";
+        }
+        message += " from directory";
+        
+        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
         
         // Call callback with null to close the dialog
         callback.select(null);
@@ -568,6 +609,53 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
       android.util.Log.e("LayoutsPreference", "Error adding layouts from directory: " + e.getMessage());
       Toast.makeText(getContext(), "Error adding layouts: " + e.getMessage(), Toast.LENGTH_LONG).show();
     }
+  }
+
+  /** Get display name for a layout, handling different layout types. */
+  private String getLayoutDisplayName(Layout layout) {
+    if (layout instanceof CustomLayout) {
+      CustomLayout cl = (CustomLayout)layout;
+      if (cl.parsed != null && cl.parsed.name != null && !cl.parsed.name.equals("")) {
+        return cl.parsed.name;
+      }
+      return getContext().getString(R.string.pref_layout_e_custom);
+    }
+    return label_of_layout(layout);
+  }
+  
+  /** Get display name for a KeyboardData layout. */
+  private String getLayoutDisplayName(KeyboardData layout) {
+    if (layout != null && layout.name != null && !layout.name.equals("")) {
+      return layout.name;
+    }
+    return "Custom Layout";
+  }
+  
+  /** Sort layouts by name, keeping SystemLayout first if present. */
+  private void sortLayoutsByName(List<Layout> layouts) {
+    // Separate SystemLayout from others
+    List<Layout> systemLayouts = new ArrayList<Layout>();
+    List<Layout> otherLayouts = new ArrayList<Layout>();
+    
+    for (Layout layout : layouts) {
+      if (layout instanceof SystemLayout) {
+        systemLayouts.add(layout);
+      } else {
+        otherLayouts.add(layout);
+      }
+    }
+    
+    // Sort non-system layouts by display name
+    Collections.sort(otherLayouts, (a, b) -> {
+      String nameA = getLayoutDisplayName(a);
+      String nameB = getLayoutDisplayName(b);
+      return nameA.compareToIgnoreCase(nameB);
+    });
+    
+    // Rebuild list with SystemLayout first, then sorted others
+    layouts.clear();
+    layouts.addAll(systemLayouts);
+    layouts.addAll(otherLayouts);
   }
 
   /** Called when modifying a layout. Custom layouts behave differently. */
