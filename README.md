@@ -46,4 +46,3 @@ Added a `make {debug,release,clean}` for Claude to use to build on Nix-enabled s
 ### Features & Functionality
 
 - Entire app config is possible to drive from storage as e.g. `.unexpected_keyboard.json`, not just layouts.
-- Make it possible to enter system shortcuts using the keyboard (i.e. alt-tab for app switching, meta-h to show the launcher, etc, as supported natively by Android for hardware keyboards)
