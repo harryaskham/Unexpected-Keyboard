@@ -430,31 +430,12 @@ public class FloatingKeyboard2 extends InputMethodService
 
     public void handle_event_key_with_value(KeyValue keyValue)
     {
-      if (keyValue.getEvent() == KeyValue.Event.SWITCH_TO_LAYOUT) {
-        String layoutName = keyValue.getLayoutName();
-        String keyString = keyValue.getString();
-        android.util.Log.d("juloo.keyboard2.fork", "SWITCH_TO_LAYOUT event - layoutName: '" + layoutName + "', keyString: '" + keyString + "'");
-        android.util.Log.d("juloo.keyboard2.fork", "KeyValue details - kind: " + keyValue.getKind() + ", event: " + keyValue.getEvent() + ", flags: " + keyValue.getFlags());
-        
-        // If layoutName is just a symbol, this means we got the visual symbol instead of the layout name
-        // This happens when keys are defined incorrectly - try to work around it
-        if (layoutName.length() <= 2 && !Character.isLetterOrDigit(layoutName.charAt(0))) {
-          android.util.Log.w("juloo.keyboard2.fork", "Layout name is a symbol '" + layoutName + "', trying to map to layout");
-          
-          // Try to map common symbols to likely layouts based on available layouts
-          String targetLayout = mapSymbolToLayout(layoutName);
-          if (targetLayout != null) {
-            android.util.Log.d("juloo.keyboard2.fork", "Mapped symbol '" + layoutName + "' to layout '" + targetLayout + "'");
-            switch_to_layout_by_name(targetLayout);
-            return;
-          } else {
-            android.util.Log.e("juloo.keyboard2.fork", "Cannot map symbol '" + layoutName + "' to any layout. Available layouts listed above.");
-            return;
-          }
+      LayoutSwitchingUtils.handleEventKeyWithValue(keyValue, _config, new LayoutSwitchingUtils.LayoutSwitcher() {
+        @Override
+        public void setTextLayout(int layoutIndex) {
+          FloatingKeyboard2.this.setTextLayout(layoutIndex);
         }
-        
-        switch_to_layout_by_name(layoutName);
-      }
+      });
     }
   }
 
@@ -464,99 +445,6 @@ public class FloatingKeyboard2 extends InputMethodService
     setTextLayout((_config.get_current_layout() + delta + s) % s);
   }
 
-  private void switch_to_layout_by_name(String layoutName)
-  {
-    if (layoutName == null || layoutName.isEmpty()) {
-      android.util.Log.w("juloo.keyboard2.fork", "Cannot switch to layout: name is null or empty");
-      return;
-    }
-
-    android.util.Log.d("juloo.keyboard2.fork", "Switching to layout by name: " + layoutName);
-    android.util.Log.d("juloo.keyboard2.fork", "Available layouts (" + _config.layouts.size() + " total):");
-    for (int j = 0; j < _config.layouts.size(); j++) {
-      KeyboardData layoutDebug = _config.layouts.get(j);
-      if (layoutDebug != null && layoutDebug.name != null) {
-        android.util.Log.d("juloo.keyboard2.fork", "  [" + j + "] '" + layoutDebug.name + "'");
-      }
-    }
-
-    // Find matching layout in available layouts
-    for (int i = 0; i < _config.layouts.size(); i++) {
-      KeyboardData layout = _config.layouts.get(i);
-      if (layout != null && layout.name != null) {
-        // Normalize layout names: convert spaces to underscores, remove non-alphanumeric chars, lowercase
-        String normalizedLayoutName = normalizeLayoutName(layout.name);
-        String normalizedTargetName = normalizeLayoutName(layoutName);
-        
-        android.util.Log.d("juloo.keyboard2.fork", "Comparing '" + normalizedTargetName + "' with '" + normalizedLayoutName + "' (original: '" + layout.name + "')");
-        
-        // Use case-insensitive comparison since we're no longer lowercasing
-        if (normalizedLayoutName.equalsIgnoreCase(normalizedTargetName)) {
-          android.util.Log.d("juloo.keyboard2.fork", "Found exact match at index " + i + ": " + layout.name);
-          setTextLayout(i);
-          return;
-        }
-      }
-    }
-
-    android.util.Log.w("juloo.keyboard2.fork", "Layout not found: " + layoutName + " (normalized: " + normalizeLayoutName(layoutName) + ")");
-  }
-  
-  private String normalizeLayoutName(String name) {
-    if (name == null) return "";
-    
-    // Don't convert to lowercase, just replace spaces with underscores and remove non-alphanumeric chars (except underscores)
-    String step1 = name.replaceAll("\\s+", "_");
-    String step2 = step1.replaceAll("[^a-zA-Z0-9_]", "");
-    
-    android.util.Log.d("juloo.keyboard2.fork", "Layout normalization: '" + name + "' -> '" + step1 + "' -> '" + step2 + "'");
-    
-    return step2;
-  }
-  
-  private String mapSymbolToLayout(String symbol) {
-    // Try to intelligently map symbols to layouts based on available layouts
-    // This is a workaround for incorrectly defined keys
-    
-    // First, try to find layouts that might correspond to the symbol
-    for (int i = 0; i < _config.layouts.size(); i++) {
-      KeyboardData layout = _config.layouts.get(i);
-      if (layout != null && layout.name != null) {
-        String layoutName = layout.name;
-        
-        // Simple mapping strategies:
-        // 1. If symbol contains directional arrows, map to splitPG (page keys) layouts
-        if ("⟺".equals(symbol) || "↔".equals(symbol) || "⥺".equals(symbol)) {
-          if (layoutName.contains("splitPG") || layoutName.contains("splitPE")) {
-            return layoutName;
-          }
-        }
-        
-        // 2. For left/right arrows, try left/right layouts  
-        if ("←".equals(symbol) || "⟵".equals(symbol)) {
-          if (layoutName.contains("lefty") || layoutName.contains("left")) {
-            return layoutName;
-          }
-        }
-        
-        if ("→".equals(symbol) || "⟶".equals(symbol)) {
-          if (layoutName.contains("righty") || layoutName.contains("right")) {
-            return layoutName;
-          }
-        }
-      }
-    }
-    
-    // If no specific mapping found, try the first layout that seems like a variant
-    for (int i = 0; i < _config.layouts.size(); i++) {
-      KeyboardData layout = _config.layouts.get(i);
-      if (layout != null && layout.name != null && layout.name.contains("(")) {
-        return layout.name; // Return first layout with parentheses (likely a variant)
-      }
-    }
-    
-    return null; // No mapping found
-  }
 
   private void switch_to_docked_ime()
   {
