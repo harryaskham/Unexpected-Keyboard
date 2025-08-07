@@ -1160,7 +1160,7 @@ public class FloatingKeyboard2 extends InputMethodService
     private float resizeStartX, resizeStartY;
     private int initialWidth, initialHeight;
     private int initialWidthPercent, initialHeightPercent;
-    private int initialWindowY;
+    private int initialWindowX, initialWindowY;
     private boolean passthroughMode = false;
 
     public ResizableFloatingContainer(Context context) {
@@ -1330,13 +1330,20 @@ public class FloatingKeyboard2 extends InputMethodService
             isResizing = true;
             resizeStartX = event.getRawX();
             resizeStartY = event.getRawY();
-            initialWidth = ResizableFloatingContainer.this.getWidth();
-            initialHeight = ResizableFloatingContainer.this.getHeight();
+            
+            // Calculate initial dimensions from config percentages to avoid size jumps
+            DisplayMetrics dm = getResources().getDisplayMetrics();
+            int scrWidth = dm.widthPixels;
+            int scrHeight = dm.heightPixels;
+            
+            initialWidth = Math.round(scrWidth * _config.floatingKeyboardWidthPercent / 100f);
+            initialHeight = Math.round(scrHeight * _config.floatingKeyboardHeightPercent / 100f);
             initialWidthPercent = _config.floatingKeyboardWidthPercent;
             initialHeightPercent = _config.floatingKeyboardHeightPercent;
+            initialWindowX = _floatingLayoutParams.x;
             initialWindowY = _floatingLayoutParams.y;
             
-            android.util.Log.d("FloatingKeyboard", "Resize start at: " + resizeStartX + ", " + resizeStartY + " Container size: " + initialWidth + "x" + initialHeight + " Initial: " + initialWidthPercent + "%x" + initialHeightPercent + "%");
+            android.util.Log.d("FloatingKeyboard", "Resize start at: " + resizeStartX + ", " + resizeStartY + " Config-based size: " + initialWidth + "x" + initialHeight + " Initial: " + initialWidthPercent + "%x" + initialHeightPercent + "%");
             showDebugToast("Resize started - " + initialWidthPercent + "%x" + initialHeightPercent + "%");
             return true;
 
@@ -1377,10 +1384,10 @@ public class FloatingKeyboard2 extends InputMethodService
               updateFloatingKeyboardWidth(Math.round(newWidthPercent));
               updateFloatingKeyboardHeight(Math.round(newHeightPercent));
               
-              // Calculate new window position to make resize handle follow the corner
-              // The resize handle should stay under the user's finger during resize
-              int newX = _floatingLayoutParams.x;
-              int newY = initialWindowY - (newKeyboardHeight - initialHeight); // Move window up when keyboard grows taller
+              // Calculate new window position for top-right resize behavior
+              // Bottom-left corner should remain fixed in place
+              int newX = initialWindowX; // Keep left edge fixed when growing wider
+              int newY = (initialWindowY + initialHeight) - newKeyboardHeight; // Keep bottom edge fixed
               
               // Apply bounds checking to prevent off-screen positioning
               newX = Math.max(0, Math.min(newX, screenWidth - newKeyboardWidth));
