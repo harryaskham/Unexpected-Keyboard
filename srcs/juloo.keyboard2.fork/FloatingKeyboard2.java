@@ -849,7 +849,7 @@ public class FloatingKeyboard2 extends InputMethodService
       FrameLayout.LayoutParams keyboardParams = new FrameLayout.LayoutParams(
           FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
       keyboardParams.gravity = Gravity.CENTER;
-      keyboardParams.setMargins(0, 30, 0, 0); // Leave space for drag handle at top
+      keyboardParams.setMargins(0, 30, 0, 12); // Leave space for drag handle at top and prevent bottom clipping
       container.addView(_floatingKeyboardView, keyboardParams);
       
       // Create drag handle with expanded touch area using consistent styling constants
