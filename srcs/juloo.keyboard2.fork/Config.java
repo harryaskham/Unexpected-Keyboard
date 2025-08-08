@@ -65,7 +65,9 @@ public final class Config
   public int keyOpacity; // 0 - 255
   public int keyActivatedOpacity; // 0 - 255
   public boolean double_tap_lock_shift;
-  public float characterSize; // Ratio
+  public float characterSize; // Ratio - kept for backward compatibility
+  public float mainLabelSize; // Ratio for central labels
+  public float subLabelSize; // Ratio for corner/edge labels
   public int theme; // Values are R.style.*
   public boolean autocapitalisation;
   public boolean switch_input_immediate;
@@ -180,6 +182,12 @@ public final class Config
     double_tap_lock_shift = _prefs.getBoolean("lock_double_tap", false);
     characterSize =
       _prefs.getFloat("character_size", 1.15f)
+      * characterSizeScale;
+    mainLabelSize =
+      _prefs.getFloat("main_label_size", 1.15f)
+      * characterSizeScale;
+    subLabelSize =
+      _prefs.getFloat("sub_label_size", 1.15f)
       * characterSizeScale;
     theme = getThemeId(res, _prefs.getString("theme", ""));
     autocapitalisation = _prefs.getBoolean("autocapitalisation", true);
