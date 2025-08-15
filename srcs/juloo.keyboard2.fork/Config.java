@@ -58,6 +58,9 @@ public final class Config
   public float horizontal_margin;
   public float key_vertical_margin;
   public float key_horizontal_margin;
+  public float key_vertical_margin_px;  // Pixel-based vertical margin
+  public float key_horizontal_margin_px; // Pixel-based horizontal margin
+  public boolean use_pixel_margins; // Switch between percentage and pixel mode
   public int labelBrightness; // 0 - 255
   public int keyboardOpacity; // 0 - 255
   public float customBorderRadius; // 0 - 1
@@ -77,6 +80,10 @@ public final class Config
   public boolean clipboard_history_enabled;
   public boolean keyboard_persistence_enabled;
   public String selected_font;
+  public float handle_height_px;
+  public float handle_width_px;
+  public float handle_touch_height_px;
+  public float handle_touch_width_px;
 
   // Dynamically set
   public boolean shouldOfferVoiceTyping;
@@ -166,6 +173,10 @@ public final class Config
     margin_bottom = get_dip_pref_oriented(dm, "margin_bottom", 7, 3);
     key_vertical_margin = get_dip_pref(dm, "key_vertical_margin", 1.5f) / 100;
     key_horizontal_margin = get_dip_pref(dm, "key_horizontal_margin", 2) / 100;
+    // Load pixel-based margins
+    key_vertical_margin_px = get_dip_pref(dm, "key_vertical_margin_px", 2.0f);
+    key_horizontal_margin_px = get_dip_pref(dm, "key_horizontal_margin_px", 3.0f);
+    use_pixel_margins = _prefs.getBoolean("use_pixel_margins", false);
     // Label brightness is used as the alpha channel
     labelBrightness = _prefs.getInt("label_brightness", 100) * 255 / 100;
     // Keyboard opacity
@@ -201,6 +212,11 @@ public final class Config
     clipboard_history_enabled = _prefs.getBoolean("clipboard_history_enabled", false);
     keyboard_persistence_enabled = _prefs.getBoolean("keyboard_persistence_enabled", false);
     selected_font = _prefs.getString("font", "default");
+    // Handle dimensions in pixels
+    handle_height_px = get_dip_pref(dm, "handle_height_px", 24.0f);
+    handle_width_px = get_dip_pref(dm, "handle_width_px", dm.widthPixels * 0.1f / dm.density);
+    handle_touch_height_px = get_dip_pref(dm, "handle_touch_height_px", 48.0f);
+    handle_touch_width_px = get_dip_pref(dm, "handle_touch_width_px", dm.widthPixels * 0.125f / dm.density);
 
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;

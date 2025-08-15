@@ -69,6 +69,15 @@
     <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="sub_label_size" android:title="@string/pref_sub_label_size_title" android:summary="@string/pref_sub_label_size_summary" android:defaultValue="1.15" min="0.25" max="2.0"/>
     <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="key_vertical_margin" android:title="@string/pref_key_vertical_space" android:summary="%s%%" android:defaultValue="1.5" min="0" max="5"/>
     <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="key_horizontal_margin" android:title="@string/pref_key_horizontal_space" android:summary="%s%%" android:defaultValue="2" min="0" max="5"/>
+    <CheckBoxPreference android:key="use_pixel_margins" android:title="@string/pref_use_pixel_margins_title" android:summary="@string/pref_use_pixel_margins_summary" android:defaultValue="false"/>
+    <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="key_vertical_margin_px" android:title="@string/pref_key_vertical_space_px" android:summary="%spx" android:defaultValue="2" min="0" max="20" android:dependency="use_pixel_margins"/>
+    <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="key_horizontal_margin_px" android:title="@string/pref_key_horizontal_space_px" android:summary="%spx" android:defaultValue="3" min="0" max="20" android:dependency="use_pixel_margins"/>
+    <PreferenceScreen android:title="Handle Dimensions">
+      <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="handle_height_px" android:title="Handle Height" android:summary="%spx" android:defaultValue="24" min="12" max="48"/>
+      <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="handle_width_px" android:title="Handle Width" android:summary="%spx" android:defaultValue="36" min="20" max="80"/>
+      <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="handle_touch_height_px" android:title="Handle Touch Height" android:summary="%spx" android:defaultValue="48" min="24" max="80"/>
+      <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="handle_touch_width_px" android:title="Handle Touch Width" android:summary="%spx" android:defaultValue="45" min="30" max="100"/>
+    </PreferenceScreen>
     <CheckBoxPreference android:key="border_config" android:title="@string/pref_border_config_title" android:defaultValue="false"/>
     <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="custom_border_radius" android:title="@string/pref_corners_radius_title" android:summary="%s%%" android:defaultValue="0" min="0" max="100" android:dependency="border_config"/>
     <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="custom_border_line_width" android:title="@string/pref_border_width_title" android:summary="%sdp" android:defaultValue="0" min="0" max="5" android:dependency="border_config"/>

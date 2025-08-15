@@ -141,8 +141,14 @@ public class Theme
       row_height = Math.min(
           config.screenHeightPixels * heightPercent / 100 / 3.95f,
           config.screenHeightPixels / layout.keysHeight);
-      vertical_margin = config.key_vertical_margin * row_height;
-      horizontal_margin = config.key_horizontal_margin * keyWidth;
+      // Use pixel-based margins if enabled, otherwise use percentage-based
+      if (config.use_pixel_margins) {
+        vertical_margin = config.key_vertical_margin_px;
+        horizontal_margin = config.key_horizontal_margin_px;
+      } else {
+        vertical_margin = config.key_vertical_margin * row_height;
+        horizontal_margin = config.key_horizontal_margin * keyWidth;
+      }
       // Add half of the key margin on the left and on the top as it's also
       // added on the right and on the bottom of every keys.
       margin_top = config.marginTop + vertical_margin / 2;

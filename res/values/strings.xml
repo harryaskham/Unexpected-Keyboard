@@ -86,6 +86,10 @@
     <string name="pref_swipe_dist_e_very_far">Very far</string>
     <string name="pref_key_horizontal_space">Horizontal spacing between the keys</string>
     <string name="pref_key_vertical_space">Vertical spacing between the keys</string>
+    <string name="pref_use_pixel_margins_title">Use pixel-based key spacing</string>
+    <string name="pref_use_pixel_margins_summary">Switch to absolute pixel spacing instead of percentage-based</string>
+    <string name="pref_key_horizontal_space_px">Horizontal spacing (pixels)</string>
+    <string name="pref_key_vertical_space_px">Vertical spacing (pixels)</string>
     <string name="pref_border_config_title">Customize borders</string>
     <string name="pref_border_width_title">Border Width</string>
     <string name="pref_corners_radius_title">Corner radius</string>
