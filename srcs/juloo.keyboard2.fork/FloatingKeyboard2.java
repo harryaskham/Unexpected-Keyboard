@@ -846,7 +846,8 @@ public class FloatingKeyboard2 extends InputMethodService
       // Calculate space needed for handles above keyboard
       int handleHeight = (int) config.handle_height_px;
       int handleMargin = (int) config.handle_margin_px;
-      // Use handle_margin_px directly - when it's 0, handles should sit on keyboard edge
+      // Keyboard starts after handles, with optional additional margin
+      // When margin=0, keyboard starts immediately after handles (at handleHeight position)
       int topSpaceForHandles = handleHeight + handleMargin;
       
       // Add keyboard with proper top margin for handles
@@ -1084,9 +1085,9 @@ public class FloatingKeyboard2 extends InputMethodService
         int currentWidth = getMeasuredWidth();
         int currentHeight = getMeasuredHeight();
         
-        // Ensure container is tall enough for handles above keyboard
-        int requiredHeight = currentHeight + minExtraHeight;
-        int finalHeight = Math.max(currentHeight, requiredHeight);
+        // Ensure container has minimum height for handles and keyboard
+        // Don't add minExtraHeight to currentHeight since keyboard margin already accounts for this
+        int finalHeight = currentHeight;
         
         // Ensure container is wide enough - keyboard should never be clipped
         // Find the keyboard view and ensure container width accommodates it
