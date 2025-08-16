@@ -839,36 +839,46 @@ public class FloatingKeyboard2 extends InputMethodService
       // Create container with drag handle and resize handle
       ResizableFloatingContainer container = new ResizableFloatingContainer(this);
       
-      // Add keyboard first
+      // Calculate proper spacing for handles above keyboard
+      Config config = Config.globalConfig();
+      DisplayMetrics dm = getResources().getDisplayMetrics();
+      
+      // Calculate space needed for handles above keyboard
+      int handleHeight = (int) config.handle_height_px;
+      int handleMargin = (int) config.handle_margin_px;
+      // Use handle_margin_px directly - when it's 0, handles should sit on keyboard edge
+      int topSpaceForHandles = handleHeight + handleMargin;
+      
+      // Add keyboard with proper top margin for handles
       FrameLayout.LayoutParams keyboardParams = new FrameLayout.LayoutParams(
           FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
       keyboardParams.gravity = Gravity.CENTER;
-      keyboardParams.setMargins(0, 30, 0, 12); // Leave space for drag handle at top and prevent bottom clipping
+      keyboardParams.setMargins(0, topSpaceForHandles, 0, 12);
       container.addView(_floatingKeyboardView, keyboardParams);
       
-      // Create drag handle with expanded touch area using config values
-      DisplayMetrics dm = getResources().getDisplayMetrics();
-      Config config = Config.globalConfig();
+      // Create drag handle with expanded touch area using calculated spacing
       
-      // Create touch container (larger invisible area for easier touching)
+      // Create drag handle container in the reserved space above keyboard
       FrameLayout dragTouchContainer = new FrameLayout(this);
-      int touchWidth = (int) (config.handle_touch_width_px * dm.density);
-      int touchHeight = (int) (config.handle_touch_height_px * dm.density);
-      FrameLayout.LayoutParams touchParams = new FrameLayout.LayoutParams(touchWidth, touchHeight);
+      int dragHandleWidth = (int) config.handle_width_px;
+      int dragHandleHeight = (int) config.handle_height_px;
+      FrameLayout.LayoutParams touchParams = new FrameLayout.LayoutParams(dragHandleWidth, dragHandleHeight);
       touchParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-      touchParams.setMargins(0, HANDLE_MARGIN_TOP_DP, 0, 0);
       
-      // Create visual handle (smaller, centered within touch area)
+      // Position handle using only the user-configured margin
+      // When handle_margin_px is 0, handle sits directly on keyboard top edge
+      touchParams.setMargins(0, 0, 0, 0);
+      
+      // Create visual handle (fills entire touch container)
       _dragHandle = new View(this);
       GradientDrawable handleDrawable = new GradientDrawable();
       handleDrawable.setColor(HANDLE_COLOR_INACTIVE);
       handleDrawable.setCornerRadius(6 * dm.density);
       _dragHandle.setBackground(handleDrawable);
       
-      int visualWidth = (int) (config.handle_width_px * dm.density);
-      int visualHeight = (int) (config.handle_height_px * dm.density);
-      FrameLayout.LayoutParams visualParams = new FrameLayout.LayoutParams(visualWidth, visualHeight);
-      visualParams.gravity = Gravity.CENTER; // Center the visual handle within the touch area
+      FrameLayout.LayoutParams visualParams = new FrameLayout.LayoutParams(
+          FrameLayout.LayoutParams.MATCH_PARENT, 
+          FrameLayout.LayoutParams.MATCH_PARENT);
       
       // Add visual handle to touch container
       dragTouchContainer.addView(_dragHandle, visualParams);
@@ -925,7 +935,7 @@ public class FloatingKeyboard2 extends InputMethodService
       });
       
       dragTouchContainer.setOnTouchListener(new FloatingDragTouchListener(_dragHandle));
-      android.util.Log.d("FloatingKeyboard", "Drag handle created - Visual: " + visualWidth + "x" + visualHeight + ", Touch: " + touchWidth + "x" + touchHeight);
+      android.util.Log.d("FloatingKeyboard", "Drag handle created - Size: " + dragHandleWidth + "x" + dragHandleHeight);
       container.setWindowManager(_windowManager, params);
       
       _floatingKeyboardActive = true;
@@ -1058,6 +1068,50 @@ public class FloatingKeyboard2 extends InputMethodService
       setPivotY(0);
       // Don't create resize handle here, create it after keyboard is added
     }
+    
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+      super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+      
+      Config config = Config.globalConfig();
+      if (config != null) {
+        DisplayMetrics dm = getResources().getDisplayMetrics();
+        int handleHeight = (int) config.handle_height_px;
+        int handleMargin = (int) config.handle_margin_px;
+        // Use only user-configured margin - no additional hardcoded margin
+        int minExtraHeight = handleHeight + handleMargin;
+        
+        int currentWidth = getMeasuredWidth();
+        int currentHeight = getMeasuredHeight();
+        
+        // Ensure container is tall enough for handles above keyboard
+        int requiredHeight = currentHeight + minExtraHeight;
+        int finalHeight = Math.max(currentHeight, requiredHeight);
+        
+        // Ensure container is wide enough - keyboard should never be clipped
+        // Find the keyboard view and ensure container width accommodates it
+        int keyboardWidth = 0;
+        for (int i = 0; i < getChildCount(); i++) {
+          View child = getChildAt(i);
+          if (child instanceof Keyboard2View) {
+            child.measure(
+              MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+              MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+            );
+            keyboardWidth = Math.max(keyboardWidth, child.getMeasuredWidth());
+          }
+        }
+        
+        // Container width should be at least as wide as keyboard, regardless of handle width
+        int finalWidth = Math.max(currentWidth, keyboardWidth);
+        
+        setMeasuredDimension(finalWidth, finalHeight);
+        
+        android.util.Log.d("FloatingKeyboard", "Container measured - width: " + currentWidth + 
+                          " -> " + finalWidth + "px, height: " + currentHeight + " -> " + finalHeight + 
+                          "px, keyboard width: " + keyboardWidth + "px");
+      }
+    }
 
     public void setWindowManager(WindowManager wm, WindowManager.LayoutParams lp) {
       windowManager = wm;
@@ -1069,49 +1123,54 @@ public class FloatingKeyboard2 extends InputMethodService
       DisplayMetrics dm = getResources().getDisplayMetrics();
       Config config = Config.globalConfig();
       
-      // Create touch container (larger invisible area for easier touching)
+      // Create touch container for resize handle
       FrameLayout resizeTouchContainer = new FrameLayout(getContext());
-      int touchWidth = (int) (config.handle_touch_width_px * dm.density);
-      int touchHeight = (int) (config.handle_touch_height_px * dm.density);
-      FrameLayout.LayoutParams touchParams = new FrameLayout.LayoutParams(touchWidth, touchHeight);
+      int handleWidth = (int) config.handle_width_px;
+      int handleHeight = (int) config.handle_height_px;
+      FrameLayout.LayoutParams touchParams = new FrameLayout.LayoutParams(handleWidth, handleHeight);
       touchParams.gravity = Gravity.TOP | Gravity.RIGHT;
-      touchParams.setMargins(0, HANDLE_MARGIN_TOP_DP, HANDLE_MARGIN_SIDE_DP, 0);
+      // Position handle using only user-configured margin
+      int resizeHandleSideMargin = (int) (HANDLE_MARGIN_SIDE_DP * dm.density);
+      touchParams.setMargins(0, 0, resizeHandleSideMargin, 0);
       
-      // Create visual handle (smaller, centered within touch area)
+      // Create visual handle (fills entire touch container)
       resizeHandle = new View(getContext());
-      GradientDrawable resizeDrawable = new GradientDrawable();
-      resizeDrawable.setColor(HANDLE_COLOR_INACTIVE);
-      resizeDrawable.setCornerRadius(6 * dm.density);
-      resizeHandle.setBackground(resizeDrawable);
       
-      int visualWidth = (int) (config.handle_width_px * dm.density);
-      int visualHeight = (int) (config.handle_height_px * dm.density);
-      FrameLayout.LayoutParams visualParams = new FrameLayout.LayoutParams(visualWidth, visualHeight);
-      visualParams.gravity = Gravity.CENTER; // Center the visual handle within the touch area
+      // Set inactive background IMMEDIATELY to avoid any timing issues
+      GradientDrawable inactiveDrawable = new GradientDrawable();
+      inactiveDrawable.setColor(HANDLE_COLOR_INACTIVE);
+      inactiveDrawable.setCornerRadius(6 * dm.density);
+      resizeHandle.setBackground(inactiveDrawable);
+      android.util.Log.d("FloatingKeyboard", "Set resize handle to inactive color immediately: " + Integer.toHexString(HANDLE_COLOR_INACTIVE));
+      
+      FrameLayout.LayoutParams visualParams = new FrameLayout.LayoutParams(
+          FrameLayout.LayoutParams.MATCH_PARENT, 
+          FrameLayout.LayoutParams.MATCH_PARENT);
       
       // Add visual handle to touch container
       resizeTouchContainer.addView(resizeHandle, visualParams);
       
-      // Set touch listener on container, but pass visual handle for color changes
+      // Create touch listener after the drawable is set
       ResizeTouchListener resizeTouchListener = new ResizeTouchListener(resizeHandle);
       resizeTouchContainer.setOnTouchListener(resizeTouchListener);
       addView(resizeTouchContainer, touchParams);
       
-      // Force resize handle to inactive state and ensure touch listener uses correct drawable
-      GradientDrawable forceInactive = new GradientDrawable();
-      forceInactive.setColor(HANDLE_COLOR_INACTIVE);
-      forceInactive.setCornerRadius(6 * getResources().getDisplayMetrics().density);
-      resizeHandle.setBackground(forceInactive);
-      
-      // Also ensure the touch listener has the correct inactive drawable
-      resizeTouchListener.forceInactiveState();
-      
-      android.util.Log.d("FloatingKeyboard", "Resize handle created and added - Visual: " + visualWidth + "x" + visualHeight + ", Touch: " + touchWidth + "x" + touchHeight + " Children: " + getChildCount());
+      android.util.Log.d("FloatingKeyboard", "Resize handle created and added - Size: " + handleWidth + "x" + handleHeight + " Children: " + getChildCount());
       
       // Force visibility and make sure it's on top
       resizeHandle.setVisibility(View.VISIBLE);
       resizeHandle.bringToFront();
       resizeHandle.setElevation(20.0f);
+      
+      // Add a delayed check to catch any initialization issues that happen after layout
+      resizeHandle.post(new Runnable() {
+        @Override
+        public void run() {
+          // Double-check that the handle is still inactive after layout is complete
+          resizeTouchListener.forceInactiveState();
+          android.util.Log.d("FloatingKeyboard", "Post-layout: forced resize handle to inactive state");
+        }
+      });
     }
 
     public void createPassthroughToggle() {
@@ -1119,25 +1178,26 @@ public class FloatingKeyboard2 extends InputMethodService
       DisplayMetrics dm = getResources().getDisplayMetrics();
       Config config = Config.globalConfig();
       
-      // Create touch container (larger invisible area for easier touching)
+      // Create touch container for passthrough toggle
       passthroughTouchContainer = new FrameLayout(getContext());
-      int touchWidth = (int) (config.handle_touch_width_px * dm.density);
-      int touchHeight = (int) (config.handle_touch_height_px * dm.density);
-      FrameLayout.LayoutParams touchParams = new FrameLayout.LayoutParams(touchWidth, touchHeight);
+      int handleWidth = (int) config.handle_width_px;
+      int handleHeight = (int) config.handle_height_px;
+      FrameLayout.LayoutParams touchParams = new FrameLayout.LayoutParams(handleWidth, handleHeight);
       touchParams.gravity = Gravity.TOP | Gravity.LEFT;
-      touchParams.setMargins(HANDLE_MARGIN_SIDE_DP, HANDLE_MARGIN_TOP_DP, 0, 0);
+      // Position handle using only user-configured margin
+      int passthroughToggleSideMargin = (int) (HANDLE_MARGIN_SIDE_DP * dm.density);
+      touchParams.setMargins(passthroughToggleSideMargin, 0, 0, 0);
       
-      // Create visual handle (smaller, centered within touch area)
+      // Create visual handle (fills entire touch container)
       passthroughToggle = new View(getContext());
       GradientDrawable toggleDrawable = new GradientDrawable();
       toggleDrawable.setColor(HANDLE_COLOR_INACTIVE);
       toggleDrawable.setCornerRadius(6 * dm.density);
       passthroughToggle.setBackground(toggleDrawable);
       
-      int visualWidth = (int) (config.handle_width_px * dm.density);
-      int visualHeight = (int) (config.handle_height_px * dm.density);
-      FrameLayout.LayoutParams visualParams = new FrameLayout.LayoutParams(visualWidth, visualHeight);
-      visualParams.gravity = Gravity.CENTER; // Center the visual handle within the touch area
+      FrameLayout.LayoutParams visualParams = new FrameLayout.LayoutParams(
+          FrameLayout.LayoutParams.MATCH_PARENT, 
+          FrameLayout.LayoutParams.MATCH_PARENT);
       
       passthroughTouchContainer.addView(passthroughToggle, visualParams);
       
@@ -1151,7 +1211,7 @@ public class FloatingKeyboard2 extends InputMethodService
       
       // Set initial appearance based on current state
       updateToggleButtonAppearance();
-      android.util.Log.d("FloatingKeyboard", "Passthrough toggle created and added - Visual: " + visualWidth + "x" + visualHeight + ", Touch: " + touchWidth + "x" + touchHeight);
+      android.util.Log.d("FloatingKeyboard", "Passthrough toggle created and added - Size: " + handleWidth + "x" + handleHeight);
       
       // Test if handle gets layout correctly
       resizeHandle.post(new Runnable() {
@@ -1216,17 +1276,36 @@ public class FloatingKeyboard2 extends InputMethodService
 
       public ResizeTouchListener(View handle) {
         this.handleView = handle;
-        // Create a fresh inactive drawable to avoid any timing issues
-        this.originalDrawable = new GradientDrawable();
-        this.originalDrawable.setColor(HANDLE_COLOR_INACTIVE);
-        this.originalDrawable.setCornerRadius(6 * handle.getContext().getResources().getDisplayMetrics().density);
+        
+        // Use the existing background drawable if it's a GradientDrawable, otherwise create a new one
+        if (handle.getBackground() instanceof GradientDrawable) {
+          this.originalDrawable = (GradientDrawable) handle.getBackground();
+          android.util.Log.d("FloatingKeyboard", "ResizeTouchListener constructor - using existing drawable");
+        } else {
+          // Fallback: create a fresh inactive drawable
+          this.originalDrawable = new GradientDrawable();
+          this.originalDrawable.setColor(HANDLE_COLOR_INACTIVE);
+          this.originalDrawable.setCornerRadius(6 * handle.getContext().getResources().getDisplayMetrics().density);
+          handle.setBackground(this.originalDrawable);
+          android.util.Log.d("FloatingKeyboard", "ResizeTouchListener constructor - created new inactive drawable: " + Integer.toHexString(HANDLE_COLOR_INACTIVE));
+        }
       }
       
       public void forceInactiveState() {
         // Force the handle to use the inactive drawable
         if (handleView != null && originalDrawable != null) {
+          // Log current background before changing
+          if (handleView.getBackground() instanceof GradientDrawable) {
+            android.util.Log.d("FloatingKeyboard", "forceInactiveState() - current background is GradientDrawable");
+          } else {
+            android.util.Log.d("FloatingKeyboard", "forceInactiveState() - current background type: " + 
+              (handleView.getBackground() != null ? handleView.getBackground().getClass().getSimpleName() : "null"));
+          }
+          
           handleView.setBackground(originalDrawable);
-          android.util.Log.d("FloatingKeyboard", "Forced resize handle to inactive state");
+          android.util.Log.d("FloatingKeyboard", "forceInactiveState() called - setting to inactive color: " + Integer.toHexString(HANDLE_COLOR_INACTIVE));
+        } else {
+          android.util.Log.d("FloatingKeyboard", "forceInactiveState() - handleView or originalDrawable is null");
         }
       }
 
@@ -1577,8 +1656,8 @@ public class FloatingKeyboard2 extends InputMethodService
       
       DisplayMetrics dm = getResources().getDisplayMetrics();
       Config config = Config.globalConfig();
-      int handleWidth = (int) (config.handle_width_px * dm.density);
-      int handleHeight = (int) (config.handle_height_px * dm.density);
+      int handleWidth = (int) config.handle_width_px;
+      int handleHeight = (int) config.handle_height_px;
       
       // Position it at the same location as the main window's toggle button would be
       _toggleLayoutParams = new WindowManager.LayoutParams(
@@ -1591,15 +1670,14 @@ public class FloatingKeyboard2 extends InputMethodService
       _toggleLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
       
       // Calculate the exact position of the visual toggle handle in the main window
-      // The toggle is positioned at: window position + container margin + centering offset
-      int touchWidth = (int) (config.handle_touch_width_px * dm.density);
-      int touchHeight = (int) (config.handle_touch_height_px * dm.density);
-      int visualWidth = handleWidth; // Already calculated above
-      int centeringOffsetX = (touchWidth - visualWidth) / 2;
-      int centeringOffsetY = (touchHeight - handleHeight) / 2;
+      // No centering needed since visual and touch areas are now the same size
+      int centeringOffsetX = 0;
+      int centeringOffsetY = 0;
       
-      _toggleLayoutParams.x = _floatingLayoutParams.x + HANDLE_MARGIN_SIDE_DP + centeringOffsetX;
-      _toggleLayoutParams.y = _floatingLayoutParams.y + HANDLE_MARGIN_TOP_DP + centeringOffsetY;
+      int sideMarginPx = (int) (HANDLE_MARGIN_SIDE_DP * dm.density);
+      int topMarginPx = (int) (HANDLE_MARGIN_TOP_DP * dm.density);
+      _toggleLayoutParams.x = _floatingLayoutParams.x + sideMarginPx + centeringOffsetX;
+      _toggleLayoutParams.y = _floatingLayoutParams.y + topMarginPx + centeringOffsetY;
       
       _windowManager.addView(_toggleButtonWindow, _toggleLayoutParams);
       
