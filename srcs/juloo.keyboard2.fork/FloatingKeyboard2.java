@@ -966,10 +966,13 @@ public class FloatingKeyboard2 extends InputMethodService
         dragTouchContainer.setOnTouchListener(new FloatingDragTouchListener(_dragHandle));
       }
       
-      // Create resize handle after keyboard is added (if enabled)
-      if (config.showResizeHandle) {
-        container.createResizeHandle();
-        _resizeHandle = container.getResizeHandle();
+      // Always create resize functionality for key-initiated resize, but conditionally show handle
+      container.createResizeHandle();
+      _resizeHandle = container.getResizeHandle();
+      
+      // Hide resize handle if disabled in settings
+      if (!config.showResizeHandle && _resizeHandle != null) {
+        _resizeHandle.setVisibility(View.GONE);
       }
       
       // Create passthrough toggle button (if enabled)
@@ -1883,7 +1886,7 @@ public class FloatingKeyboard2 extends InputMethodService
       }
       x += topRightKey.shift * keyWidth;
       
-      float y = marginTop + firstRow.shift * tc.row_height;
+      float y = tc.margin_top + firstRow.shift * tc.row_height;
       float keyW = keyWidth * topRightKey.width - tc.horizontal_margin;
       float keyH = firstRow.height * tc.row_height - tc.vertical_margin;
       
