@@ -87,6 +87,8 @@ public final class Config
   public boolean showDragHandle;
   public boolean showResizeHandle;
   public boolean showPassthroughHandle;
+  public int snapWidthPercent; // Percentage of screen width for snap operations
+  public boolean isFloatingDocked; // Current docked state
 
   // Dynamically set
   public boolean shouldOfferVoiceTyping;
@@ -223,6 +225,8 @@ public final class Config
     showDragHandle = _prefs.getBoolean("show_drag_handle", true);
     showResizeHandle = _prefs.getBoolean("show_resize_handle", true);
     showPassthroughHandle = _prefs.getBoolean("show_passthrough_handle", true);
+    snapWidthPercent = _prefs.getInt("snap_width_percent", 50);
+    isFloatingDocked = _prefs.getBoolean("is_floating_docked", false);
 
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;
@@ -257,6 +261,12 @@ public final class Config
   {
     keyboard_persistence_enabled = e;
     _prefs.edit().putBoolean("keyboard_persistence_enabled", e).commit();
+  }
+
+  public void set_floating_docked(boolean docked)
+  {
+    isFloatingDocked = docked;
+    _prefs.edit().putBoolean("is_floating_docked", docked).commit();
   }
 
   private float get_dip_pref(DisplayMetrics dm, String pref_name, float def)

@@ -29,6 +29,10 @@ public final class KeyValue implements Comparable<KeyValue>
     FLOATING_MOVE,
     FLOATING_RESIZE,
     FLOATING_ENABLE_PASSTHROUGH,
+    SNAP_LEFT,
+    SNAP_RIGHT,
+    FILL_WIDTH,
+    TOGGLE_FLOATING_DOCKED,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -687,6 +691,10 @@ public final class KeyValue implements Comparable<KeyValue>
       case "floating_move": return eventKey("Move", Event.FLOATING_MOVE, FLAG_SMALLER_FONT);
       case "floating_resize": return eventKey("Resize", Event.FLOATING_RESIZE, FLAG_SMALLER_FONT);
       case "floating_enable_passthrough": return eventKey("Pass", Event.FLOATING_ENABLE_PASSTHROUGH, FLAG_SMALLER_FONT);
+      case "snap_left": return eventKey("SnapL", Event.SNAP_LEFT, FLAG_SMALLER_FONT);
+      case "snap_right": return eventKey("SnapR", Event.SNAP_RIGHT, FLAG_SMALLER_FONT);
+      case "fill_width": return eventKey("Fill", Event.FILL_WIDTH, FLAG_SMALLER_FONT);
+      case "toggle_floating_docked": return eventKey("Dock", Event.TOGGLE_FLOATING_DOCKED, FLAG_SMALLER_FONT);
 
       /* Key events */
       case "esc": return keyeventKey("Esc", KeyEvent.KEYCODE_ESCAPE, FLAG_SMALLER_FONT);

@@ -423,6 +423,18 @@ public class FloatingKeyboard2 extends InputMethodService
             ((ResizableFloatingContainer)_floatingContainer).enterPassthroughMode();
           }
           break;
+        case SNAP_LEFT:
+          snapKeyboardLeft();
+          break;
+        case SNAP_RIGHT:
+          snapKeyboardRight();
+          break;
+        case FILL_WIDTH:
+          fillKeyboardWidth();
+          break;
+        case TOGGLE_FLOATING_DOCKED:
+          toggleFloatingDock();
+          break;
       }
     }
 
@@ -2058,5 +2070,212 @@ public class FloatingKeyboard2 extends InputMethodService
         android.util.Log.e("FloatingKeyboard", "Error removing toggle button window: " + e.getMessage());
       }
     }
+  }
+
+  private void snapKeyboardLeft()
+  {
+    android.util.Log.d("FloatingKeyboard", "Snapping keyboard to left");
+    
+    if (!_floatingKeyboardActive || _floatingLayoutParams == null) {
+      android.util.Log.d("FloatingKeyboard", "Cannot snap left - floating keyboard not active");
+      return;
+    }
+    
+    Config config = Config.globalConfig();
+    DisplayMetrics dm = getResources().getDisplayMetrics();
+    
+    // Update keyboard configuration width to snap percentage
+    SharedPreferences.Editor editor = Config.globalPrefs().edit();
+    if (config.orientation_landscape) {
+      if (config.foldable_unfolded) {
+        editor.putInt("floating_keyboard_width_landscape_unfolded", config.snapWidthPercent);
+      } else {
+        editor.putInt("floating_keyboard_width_landscape", config.snapWidthPercent);
+      }
+    } else {
+      if (config.foldable_unfolded) {
+        editor.putInt("floating_keyboard_width_unfolded", config.snapWidthPercent);
+      } else {
+        editor.putInt("floating_keyboard_width", config.snapWidthPercent);
+      }
+    }
+    editor.apply();
+    
+    // Position at left edge
+    _floatingLayoutParams.x = 0;
+    
+    // Refresh the keyboard with new dimensions
+    refreshFloatingKeyboard();
+    
+    showDebugToast("Snapped to left (" + config.snapWidthPercent + "% width)");
+    android.util.Log.d("FloatingKeyboard", "Keyboard snapped left with width=" + config.snapWidthPercent + "%");
+  }
+
+  private void snapKeyboardRight()
+  {
+    android.util.Log.d("FloatingKeyboard", "Snapping keyboard to right");
+    
+    if (!_floatingKeyboardActive || _floatingLayoutParams == null) {
+      android.util.Log.d("FloatingKeyboard", "Cannot snap right - floating keyboard not active");
+      return;
+    }
+    
+    Config config = Config.globalConfig();
+    DisplayMetrics dm = getResources().getDisplayMetrics();
+    
+    // Update keyboard configuration width to snap percentage
+    SharedPreferences.Editor editor = Config.globalPrefs().edit();
+    if (config.orientation_landscape) {
+      if (config.foldable_unfolded) {
+        editor.putInt("floating_keyboard_width_landscape_unfolded", config.snapWidthPercent);
+      } else {
+        editor.putInt("floating_keyboard_width_landscape", config.snapWidthPercent);
+      }
+    } else {
+      if (config.foldable_unfolded) {
+        editor.putInt("floating_keyboard_width_unfolded", config.snapWidthPercent);
+      } else {
+        editor.putInt("floating_keyboard_width", config.snapWidthPercent);
+      }
+    }
+    editor.apply();
+    
+    // Calculate right position after refresh (will be updated by refreshFloatingKeyboard)
+    int snapWidth = (int)(dm.widthPixels * config.snapWidthPercent / 100.0f);
+    int rightPosition = dm.widthPixels - snapWidth;
+    
+    // Refresh the keyboard with new dimensions first
+    refreshFloatingKeyboard();
+    
+    // Then position at right edge
+    _floatingLayoutParams.x = rightPosition;
+    _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+    
+    showDebugToast("Snapped to right (" + config.snapWidthPercent + "% width)");
+    android.util.Log.d("FloatingKeyboard", "Keyboard snapped right with width=" + config.snapWidthPercent + "%");
+  }
+
+  private void fillKeyboardWidth()
+  {
+    android.util.Log.d("FloatingKeyboard", "Filling keyboard width to 100%");
+    
+    if (!_floatingKeyboardActive || _floatingLayoutParams == null) {
+      android.util.Log.d("FloatingKeyboard", "Cannot fill width - floating keyboard not active");
+      return;
+    }
+    
+    DisplayMetrics dm = getResources().getDisplayMetrics();
+    
+    // Set width to 100% and position to left edge
+    _floatingLayoutParams.width = dm.widthPixels;
+    _floatingLayoutParams.x = 0;
+    
+    try {
+      _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+      showDebugToast("Keyboard width filled to 100%");
+      android.util.Log.d("FloatingKeyboard", "Keyboard width filled: width=" + dm.widthPixels + ", x=0");
+    } catch (Exception e) {
+      android.util.Log.e("FloatingKeyboard", "Error filling keyboard width: " + e.getMessage());
+    }
+  }
+
+  private void toggleFloatingDock()
+  {
+    android.util.Log.d("FloatingKeyboard", "Toggling floating dock mode");
+    
+    if (!_floatingKeyboardActive || _floatingLayoutParams == null) {
+      android.util.Log.d("FloatingKeyboard", "Cannot toggle dock - floating keyboard not active");
+      return;
+    }
+    
+    Config config = Config.globalConfig();
+    boolean wasDocked = config.isFloatingDocked;
+    
+    if (!wasDocked) {
+      // Enter docked mode
+      enterDockedMode();
+    } else {
+      // Exit docked mode  
+      exitDockedMode();
+    }
+    
+    // Update config state
+    config.set_floating_docked(!wasDocked);
+    
+    String message = config.isFloatingDocked ? "Entered docked mode" : "Exited docked mode";
+    showDebugToast(message);
+    android.util.Log.d("FloatingKeyboard", "Floating dock toggled to: " + config.isFloatingDocked);
+  }
+
+  private void enterDockedMode()
+  {
+    android.util.Log.d("FloatingKeyboard", "Entering docked mode");
+    
+    DisplayMetrics dm = getResources().getDisplayMetrics();
+    
+    // Save current position for restoration later
+    android.content.SharedPreferences prefs = getSharedPreferences("FloatingKeyboard", MODE_PRIVATE);
+    android.content.SharedPreferences.Editor editor = prefs.edit();
+    editor.putInt("pre_dock_x", _floatingLayoutParams.x);
+    editor.putInt("pre_dock_y", _floatingLayoutParams.y);
+    editor.putInt("pre_dock_width", _floatingLayoutParams.width);
+    editor.apply();
+    
+    // Position keyboard at bottom of screen, full width
+    _floatingLayoutParams.width = dm.widthPixels;
+    _floatingLayoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT;
+    _floatingLayoutParams.x = 0;
+    _floatingLayoutParams.y = dm.heightPixels - getKeyboardHeight();
+    
+    // Add flag to reserve system UI space
+    _floatingLayoutParams.flags |= WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+    _floatingLayoutParams.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
+    
+    try {
+      _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+      android.util.Log.d("FloatingKeyboard", "Entered docked mode successfully");
+    } catch (Exception e) {
+      android.util.Log.e("FloatingKeyboard", "Error entering docked mode: " + e.getMessage());
+    }
+  }
+
+  private void exitDockedMode()
+  {
+    android.util.Log.d("FloatingKeyboard", "Exiting docked mode");
+    
+    // Restore previous position and size
+    android.content.SharedPreferences prefs = getSharedPreferences("FloatingKeyboard", MODE_PRIVATE);
+    int prevX = prefs.getInt("pre_dock_x", 100);
+    int prevY = prefs.getInt("pre_dock_y", 100);
+    int prevWidth = prefs.getInt("pre_dock_width", 800);
+    
+    _floatingLayoutParams.width = prevWidth;
+    _floatingLayoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT;
+    _floatingLayoutParams.x = prevX;
+    _floatingLayoutParams.y = prevY;
+    
+    // Remove docked mode flags
+    _floatingLayoutParams.flags &= ~WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+    _floatingLayoutParams.systemUiVisibility = 0;
+    
+    try {
+      _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+      android.util.Log.d("FloatingKeyboard", "Exited docked mode successfully");
+    } catch (Exception e) {
+      android.util.Log.e("FloatingKeyboard", "Error exiting docked mode: " + e.getMessage());
+    }
+  }
+
+  private int getKeyboardHeight()
+  {
+    if (_floatingKeyboardView != null) {
+      _floatingKeyboardView.measure(
+        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+      );
+      return _floatingKeyboardView.getMeasuredHeight();
+    }
+    // Fallback height estimate
+    return (int)(getResources().getDisplayMetrics().heightPixels * 0.25f);
   }
 }
