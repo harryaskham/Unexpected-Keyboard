@@ -1455,7 +1455,9 @@ public class FloatingKeyboard2 extends InputMethodService
           
           // Dim the keyboard to show it's in passthrough mode
           if (_floatingKeyboardView != null) {
-            _floatingKeyboardView.setAlpha(0.3f);
+            Config config = Config.globalConfig();
+            float disabledAlpha = config.keyboardDisabledOpacity / 100.0f;
+            _floatingKeyboardView.setAlpha(disabledAlpha);
           }
           
           // Update handle opacity for disabled state

@@ -83,6 +83,7 @@ public final class Config
   public float handle_height_px;
   public float handle_width_px;
   public float handle_margin_px;
+  public int keyboardDisabledOpacity; // 0 - 100 (percentage)
 
   // Dynamically set
   public boolean shouldOfferVoiceTyping;
@@ -215,6 +216,7 @@ public final class Config
     handle_height_px = get_dip_pref(dm, "handle_height_px", 24.0f);
     handle_width_px = get_dip_pref(dm, "handle_width_px", dm.widthPixels * 0.1f / dm.density);
     handle_margin_px = get_dip_pref(dm, "handle_margin_px", 3.0f);
+    keyboardDisabledOpacity = _prefs.getInt("keyboard_disabled_opacity", 30);
 
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;

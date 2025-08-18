@@ -77,6 +77,7 @@
       <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="handle_width_px" android:title="Handle Width" android:summary="%.1fpx" android:defaultValue="36.0" min="1.0" max="80.0" step="0.1"/>
       <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="handle_margin_px" android:title="Handle Margin" android:summary="%.1fpx" android:defaultValue="3.0" min="0.0" max="20.0" step="0.1"/>
     </PreferenceScreen>
+    <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="keyboard_disabled_opacity" android:title="@string/pref_keyboard_disabled_opacity" android:summary="%s%%" android:defaultValue="30" min="5" max="100" step="1"/>
     <CheckBoxPreference android:key="border_config" android:title="@string/pref_border_config_title" android:defaultValue="false"/>
     <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="custom_border_radius" android:title="@string/pref_corners_radius_title" android:summary="%s%%" android:defaultValue="0" min="0" max="100" android:dependency="border_config"/>
     <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="custom_border_line_width" android:title="@string/pref_border_width_title" android:summary="%.1fdp" android:defaultValue="0.0" min="0.0" max="5.0" step="0.1" android:dependency="border_config"/>
