@@ -2101,11 +2101,18 @@ public class FloatingKeyboard2 extends InputMethodService
     }
     editor.apply();
     
-    // Position at left edge
-    _floatingLayoutParams.x = 0;
+    // Refresh config to pick up new width values
+    config.refresh(getResources(), false);
     
-    // Refresh the keyboard with new dimensions
-    refreshFloatingKeyboard();
+    // Completely recreate the floating keyboard with new dimensions
+    removeFloatingKeyboard();
+    createFloatingKeyboard();
+    
+    // Position at left edge
+    if (_floatingLayoutParams != null) {
+      _floatingLayoutParams.x = 0;
+      _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+    }
     
     showDebugToast("Snapped to left (" + config.snapWidthPercent + "% width)");
     android.util.Log.d("FloatingKeyboard", "Keyboard snapped left with width=" + config.snapWidthPercent + "%");
@@ -2140,16 +2147,20 @@ public class FloatingKeyboard2 extends InputMethodService
     }
     editor.apply();
     
-    // Calculate right position after refresh (will be updated by refreshFloatingKeyboard)
-    int snapWidth = (int)(dm.widthPixels * config.snapWidthPercent / 100.0f);
-    int rightPosition = dm.widthPixels - snapWidth;
+    // Refresh config to pick up new width values
+    config.refresh(getResources(), false);
     
-    // Refresh the keyboard with new dimensions first
-    refreshFloatingKeyboard();
+    // Completely recreate the floating keyboard with new dimensions
+    removeFloatingKeyboard();
+    createFloatingKeyboard();
     
-    // Then position at right edge
-    _floatingLayoutParams.x = rightPosition;
-    _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+    // Position at right edge
+    if (_floatingLayoutParams != null) {
+      int snapWidth = (int)(dm.widthPixels * config.snapWidthPercent / 100.0f);
+      int rightPosition = dm.widthPixels - snapWidth;
+      _floatingLayoutParams.x = rightPosition;
+      _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+    }
     
     showDebugToast("Snapped to right (" + config.snapWidthPercent + "% width)");
     android.util.Log.d("FloatingKeyboard", "Keyboard snapped right with width=" + config.snapWidthPercent + "%");
@@ -2164,19 +2175,40 @@ public class FloatingKeyboard2 extends InputMethodService
       return;
     }
     
-    DisplayMetrics dm = getResources().getDisplayMetrics();
+    Config config = Config.globalConfig();
     
-    // Set width to 100% and position to left edge
-    _floatingLayoutParams.width = dm.widthPixels;
-    _floatingLayoutParams.x = 0;
-    
-    try {
-      _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
-      showDebugToast("Keyboard width filled to 100%");
-      android.util.Log.d("FloatingKeyboard", "Keyboard width filled: width=" + dm.widthPixels + ", x=0");
-    } catch (Exception e) {
-      android.util.Log.e("FloatingKeyboard", "Error filling keyboard width: " + e.getMessage());
+    // Update keyboard configuration width to 100%
+    SharedPreferences.Editor editor = Config.globalPrefs().edit();
+    if (config.orientation_landscape) {
+      if (config.foldable_unfolded) {
+        editor.putInt("floating_keyboard_width_landscape_unfolded", 100);
+      } else {
+        editor.putInt("floating_keyboard_width_landscape", 100);
+      }
+    } else {
+      if (config.foldable_unfolded) {
+        editor.putInt("floating_keyboard_width_unfolded", 100);
+      } else {
+        editor.putInt("floating_keyboard_width", 100);
+      }
     }
+    editor.apply();
+    
+    // Refresh config to pick up new width values
+    config.refresh(getResources(), false);
+    
+    // Completely recreate the floating keyboard with new dimensions
+    removeFloatingKeyboard();
+    createFloatingKeyboard();
+    
+    // Position at left edge
+    if (_floatingLayoutParams != null) {
+      _floatingLayoutParams.x = 0;
+      _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+    }
+    
+    showDebugToast("Keyboard width filled to 100%");
+    android.util.Log.d("FloatingKeyboard", "Keyboard width filled to 100%");
   }
 
   private void toggleFloatingDock()
