@@ -1908,9 +1908,13 @@ public class FloatingKeyboard2 extends InputMethodService
       
       _toggleButtonWindow = toggleButton;
       
-      // Set up touch listener for the toggle button
+      // Set up touch listener for the toggle button with drag support
       _toggleButtonWindow.setOnTouchListener(new View.OnTouchListener() {
         private android.graphics.drawable.GradientDrawable originalDrawable = keyDrawable;
+        private float startX, startY;
+        private int startWindowX, startWindowY;
+        private boolean isDragging = false;
+        private static final float DRAG_THRESHOLD = 10f; // pixels
         
         @Override
         public boolean onTouch(View v, MotionEvent event) {
@@ -1918,6 +1922,13 @@ public class FloatingKeyboard2 extends InputMethodService
           
           switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
+              // Record starting position for drag detection
+              startX = event.getRawX();
+              startY = event.getRawY();
+              startWindowX = _toggleLayoutParams.x;
+              startWindowY = _toggleLayoutParams.y;
+              isDragging = false;
+              
               // Style like an activated key
               android.graphics.drawable.GradientDrawable activeDrawable = new android.graphics.drawable.GradientDrawable();
               activeDrawable.setColor(keyActivatedColor);
@@ -1929,16 +1940,43 @@ public class FloatingKeyboard2 extends InputMethodService
               ((android.widget.TextView)v).setTextColor(activatedLabelColor);
               return true;
               
+            case MotionEvent.ACTION_MOVE:
+              float deltaX = event.getRawX() - startX;
+              float deltaY = event.getRawY() - startY;
+              float distance = (float) Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+              
+              if (distance > DRAG_THRESHOLD) {
+                isDragging = true;
+                
+                // Update window position
+                _toggleLayoutParams.x = startWindowX + (int)deltaX;
+                _toggleLayoutParams.y = startWindowY + (int)deltaY;
+                
+                try {
+                  _windowManager.updateViewLayout(_toggleButtonWindow, _toggleLayoutParams);
+                } catch (Exception e) {
+                  android.util.Log.e("FloatingKeyboard", "Error updating re-enable button position: " + e.getMessage());
+                }
+              }
+              return true;
+              
             case MotionEvent.ACTION_UP:
               // Restore original key style
               v.setBackground(originalDrawable);
               ((android.widget.TextView)v).setTextColor(labelColor);
               
-              // Exit passthrough mode
-              if (_floatingContainer instanceof ResizableFloatingContainer) {
-                ((ResizableFloatingContainer)_floatingContainer).exitPassthroughMode();
+              if (!isDragging) {
+                // This was a tap, not a drag - re-enable the keyboard
+                if (_floatingContainer instanceof ResizableFloatingContainer) {
+                  ((ResizableFloatingContainer)_floatingContainer).exitPassthroughMode();
+                }
+                showDebugToast("Keyboard touches re-enabled");
+              } else {
+                // This was a drag - save the new position
+                saveToggleButtonPosition(_toggleLayoutParams.x, _toggleLayoutParams.y);
+                showDebugToast("Re-enable button moved to new position");
+                android.util.Log.d("FloatingKeyboard", "Re-enable button dragged to: " + _toggleLayoutParams.x + "," + _toggleLayoutParams.y);
               }
-              showDebugToast("Keyboard touches re-enabled");
               return true;
               
             case MotionEvent.ACTION_CANCEL:
@@ -1961,8 +1999,20 @@ public class FloatingKeyboard2 extends InputMethodService
           PixelFormat.TRANSLUCENT);
       
       _toggleLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
-      _toggleLayoutParams.x = _floatingLayoutParams.x + (int)x;
-      _toggleLayoutParams.y = _floatingLayoutParams.y + (int)y;
+      
+      // Check for saved position, otherwise use default top-right key position
+      android.content.SharedPreferences prefs = getSharedPreferences("FloatingKeyboard", MODE_PRIVATE);
+      boolean hasSavedPosition = prefs.contains("toggle_button_x") && prefs.contains("toggle_button_y");
+      
+      if (hasSavedPosition) {
+        _toggleLayoutParams.x = prefs.getInt("toggle_button_x", _floatingLayoutParams.x + (int)x);
+        _toggleLayoutParams.y = prefs.getInt("toggle_button_y", _floatingLayoutParams.y + (int)y);
+        android.util.Log.d("FloatingKeyboard", "Using saved toggle button position: " + _toggleLayoutParams.x + "," + _toggleLayoutParams.y);
+      } else {
+        _toggleLayoutParams.x = _floatingLayoutParams.x + (int)x;
+        _toggleLayoutParams.y = _floatingLayoutParams.y + (int)y;
+        android.util.Log.d("FloatingKeyboard", "Using default toggle button position: " + _toggleLayoutParams.x + "," + _toggleLayoutParams.y);
+      }
       
       _windowManager.addView(_toggleButtonWindow, _toggleLayoutParams);
       
@@ -1971,6 +2021,19 @@ public class FloatingKeyboard2 extends InputMethodService
                         " with size: " + (int)keyW + "x" + (int)keyH);
     } catch (Exception e) {
       android.util.Log.e("FloatingKeyboard", "Error creating toggle button window: " + e.getMessage());
+    }
+  }
+
+  private void saveToggleButtonPosition(int x, int y) {
+    try {
+      android.content.SharedPreferences prefs = getSharedPreferences("FloatingKeyboard", MODE_PRIVATE);
+      android.content.SharedPreferences.Editor editor = prefs.edit();
+      editor.putInt("toggle_button_x", x);
+      editor.putInt("toggle_button_y", y);
+      editor.apply();
+      android.util.Log.d("FloatingKeyboard", "Saved toggle button position: " + x + "," + y);
+    } catch (Exception e) {
+      android.util.Log.e("FloatingKeyboard", "Error saving toggle button position: " + e.getMessage());
     }
   }
 
