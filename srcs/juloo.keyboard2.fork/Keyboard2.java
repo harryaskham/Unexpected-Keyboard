@@ -543,6 +543,16 @@ public class Keyboard2 extends InputMethodService
     {
       return _handler;
     }
+
+    public void sendSystemKeyEvent(int keyCode)
+    {
+      try {
+        android.util.Log.d("juloo.keyboard2.fork", "Keyboard2: Sending system-wide key event: " + keyCode);
+        sendDownUpKeyEvents(keyCode);
+      } catch (Exception e) {
+        android.util.Log.e("juloo.keyboard2.fork", "Keyboard2: Error sending system key event: " + e.getMessage());
+      }
+    }
   }
 
   private IBinder getConnectionToken()

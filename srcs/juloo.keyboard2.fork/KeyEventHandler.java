@@ -208,8 +208,46 @@ public final class KeyEventHandler
   void send_keyevent(int eventAction, int eventCode, int metaState)
   {
     InputConnection conn = _recv.getCurrentInputConnection();
+    
+    // Check if we should send system-wide key events (persistence mode + no input connection)
+    Config config = Config.globalConfig();
+    if (conn == null && config != null && config.keyboard_persistence_enabled) {
+      // Send system-wide key event for navigation when no text field is focused
+      try {
+        android.util.Log.d("juloo.keyboard2.fork", "Sending system-wide key event: " + eventCode + " (action: " + eventAction + ")");
+        
+        // Create a proper KeyEvent for system injection
+        KeyEvent keyEvent = new KeyEvent(
+          android.os.SystemClock.uptimeMillis(), 
+          android.os.SystemClock.uptimeMillis(),
+          eventAction, 
+          eventCode, 
+          0, // repeat
+          metaState, 
+          KeyCharacterMap.VIRTUAL_KEYBOARD, 
+          0, // scancode
+          KeyEvent.FLAG_SOFT_KEYBOARD | KeyEvent.FLAG_KEEP_TOUCH_MODE
+        );
+        
+        // Inject the key event system-wide using InputMethodService's sendDownUpKeyEvents
+        if (eventAction == KeyEvent.ACTION_DOWN) {
+          _recv.sendSystemKeyEvent(eventCode);
+          android.util.Log.d("juloo.keyboard2.fork", "System-wide key event sent: " + eventCode);
+        }
+        
+        if (eventAction == KeyEvent.ACTION_UP)
+          _autocap.event_sent(eventCode, metaState);
+        return;
+      } catch (Exception e) {
+        android.util.Log.e("juloo.keyboard2.fork", "Error sending system-wide key event: " + e.getMessage());
+        // Fall through to normal return if system-wide injection fails
+      }
+    }
+    
     if (conn == null)
       return;
+    
+    // Normal InputConnection-based key event sending
     conn.sendKeyEvent(new KeyEvent(1, 1, eventAction, eventCode, 0,
           metaState, KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
           KeyEvent.FLAG_SOFT_KEYBOARD | KeyEvent.FLAG_KEEP_TOUCH_MODE));
@@ -646,6 +684,7 @@ public final class KeyEventHandler
     public void selection_state_changed(boolean selection_is_ongoing);
     public InputConnection getCurrentInputConnection();
     public Handler getHandler();
+    public void sendSystemKeyEvent(int keyCode); // For system-wide key injection
   }
 
   class Autocapitalisation_callback implements Autocapitalisation.Callback

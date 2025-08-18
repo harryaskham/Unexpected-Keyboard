@@ -457,6 +457,16 @@ public class FloatingKeyboard2 extends InputMethodService
       return _handler;
     }
 
+    public void sendSystemKeyEvent(int keyCode)
+    {
+      try {
+        android.util.Log.d("juloo.keyboard2.fork", "FloatingKeyboard2: Sending system-wide key event: " + keyCode);
+        sendDownUpKeyEvents(keyCode);
+      } catch (Exception e) {
+        android.util.Log.e("juloo.keyboard2.fork", "FloatingKeyboard2: Error sending system key event: " + e.getMessage());
+      }
+    }
+
     public void handle_event_key_with_value(KeyValue keyValue)
     {
       LayoutSwitchingUtils.handleEventKeyWithValue(keyValue, _config, new LayoutSwitchingUtils.LayoutSwitcher() {
