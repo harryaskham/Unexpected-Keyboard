@@ -84,6 +84,9 @@ public final class Config
   public float handle_width_px;
   public float handle_margin_px;
   public int keyboardDisabledOpacity; // 0 - 100 (percentage)
+  public boolean showDragHandle;
+  public boolean showResizeHandle;
+  public boolean showPassthroughHandle;
 
   // Dynamically set
   public boolean shouldOfferVoiceTyping;
@@ -217,6 +220,9 @@ public final class Config
     handle_width_px = get_dip_pref(dm, "handle_width_px", dm.widthPixels * 0.1f / dm.density);
     handle_margin_px = get_dip_pref(dm, "handle_margin_px", 3.0f);
     keyboardDisabledOpacity = _prefs.getInt("keyboard_disabled_opacity", 30);
+    showDragHandle = _prefs.getBoolean("show_drag_handle", true);
+    showResizeHandle = _prefs.getBoolean("show_resize_handle", true);
+    showPassthroughHandle = _prefs.getBoolean("show_passthrough_handle", true);
 
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;

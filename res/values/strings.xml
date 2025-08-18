@@ -152,4 +152,10 @@
     <string name="pref_font_e_default">Default</string>
     <string name="pref_font_e_fira_code">Fira Code Nerd Font</string>
     <string name="pref_keyboard_disabled_opacity">Keyboard opacity when disabled</string>
+    <string name="pref_show_drag_handle">Show drag handle</string>
+    <string name="pref_show_drag_handle_summary">Display the drag handle for moving the floating keyboard</string>
+    <string name="pref_show_resize_handle">Show resize handle</string>
+    <string name="pref_show_resize_handle_summary">Display the resize handle for changing keyboard dimensions</string>
+    <string name="pref_show_passthrough_handle">Show passthrough handle</string>
+    <string name="pref_show_passthrough_handle_summary">Display the passthrough handle for disabling keyboard touches</string>
 </resources>

@@ -26,6 +26,9 @@ public final class KeyValue implements Comparable<KeyValue>
     TOGGLE_FLOATING,
     TOGGLE_PERSISTENCE,
     SWITCH_TO_LAYOUT,
+    FLOATING_MOVE,
+    FLOATING_RESIZE,
+    FLOATING_ENABLE_PASSTHROUGH,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -681,6 +684,9 @@ public final class KeyValue implements Comparable<KeyValue>
       case "voice_typing_chooser": return eventKey(0xE015, Event.SWITCH_VOICE_TYPING_CHOOSER, FLAG_SMALLER_FONT);
       case "toggle_floating": return eventKey("Float", Event.TOGGLE_FLOATING, FLAG_SMALLER_FONT);
       case "toggle_persistence": return eventKey("Persist", Event.TOGGLE_PERSISTENCE, FLAG_SMALLER_FONT);
+      case "floating_move": return eventKey("Move", Event.FLOATING_MOVE, FLAG_SMALLER_FONT);
+      case "floating_resize": return eventKey("Resize", Event.FLOATING_RESIZE, FLAG_SMALLER_FONT);
+      case "floating_enable_passthrough": return eventKey("Pass", Event.FLOATING_ENABLE_PASSTHROUGH, FLAG_SMALLER_FONT);
 
       /* Key events */
       case "esc": return keyeventKey("Esc", KeyEvent.KEYCODE_ESCAPE, FLAG_SMALLER_FONT);

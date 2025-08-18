@@ -496,6 +496,13 @@ public class Keyboard2 extends InputMethodService
           switch_to_floating_ime();
           break;
 
+        case FLOATING_MOVE:
+        case FLOATING_RESIZE:
+        case FLOATING_ENABLE_PASSTHROUGH:
+          // These actions are only meaningful in floating mode
+          // In docked mode, they do nothing
+          break;
+
         case SWITCH_TO_LAYOUT:
           // This should never be called since SWITCH_TO_LAYOUT uses handle_event_key_with_value
           break;

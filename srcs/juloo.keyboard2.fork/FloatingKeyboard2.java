@@ -41,6 +41,24 @@ public class FloatingKeyboard2 extends InputMethodService
   private static final float HANDLE_ACTIVE_ALPHA = 0.8f;    // 80% opacity when keyboard is active
   private static final float HANDLE_DIMMED_ALPHA = 0.4f;    // Dimmed when keyboard is disabled
   private static final float HANDLE_REENABLE_ALPHA = 0.8f;  // Re-enable handle always 80%
+  
+  // Visual feedback state for floating key modes
+  private static boolean visualDragModeActive = false;
+  private static boolean visualResizeModeActive = false;
+  
+  // Public static methods for visual feedback
+  public static boolean isFloatingDragModeActive() {
+    return visualDragModeActive;
+  }
+  
+  public static boolean isFloatingResizeModeActive() {
+    return visualResizeModeActive;
+  }
+  
+  private static void clearFloatingModeVisuals() {
+    visualDragModeActive = false;
+    visualResizeModeActive = false;
+  }
   private Keyboard2View _keyboardView;
   private KeyEventHandler _keyeventhandler;
   private KeyboardData _currentSpecialLayout;
@@ -388,6 +406,23 @@ public class FloatingKeyboard2 extends InputMethodService
         case TOGGLE_PERSISTENCE:
           toggle_keyboard_persistence();
           break;
+
+        case FLOATING_MOVE:
+          // Start drag mode immediately
+          startKeyboardDragMode();
+          break;
+
+        case FLOATING_RESIZE:
+          // Start resize mode immediately
+          startKeyboardResizeMode();
+          break;
+
+        case FLOATING_ENABLE_PASSTHROUGH:
+          // Toggle passthrough mode (same as clicking the disable handle)
+          if (_floatingContainer instanceof ResizableFloatingContainer) {
+            ((ResizableFloatingContainer)_floatingContainer).enterPassthroughMode();
+          }
+          break;
       }
     }
 
@@ -483,6 +518,46 @@ public class FloatingKeyboard2 extends InputMethodService
     // Show toast feedback to user
     String message = newState ? "Keyboard persistence enabled" : "Keyboard persistence disabled";
     Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+  }
+
+  private void startKeyboardDragMode()
+  {
+    android.util.Log.d("FloatingKeyboard", "Starting keyboard drag mode via key press");
+    
+    if (!_floatingKeyboardActive || _floatingContainer == null) {
+      android.util.Log.d("FloatingKeyboard", "Cannot start drag mode - floating keyboard not active");
+      return;
+    }
+    
+    // Set visual feedback state
+    visualDragModeActive = true;
+    if (_floatingKeyboardView != null) {
+      ((Keyboard2View)_floatingKeyboardView).invalidate(); // Trigger redraw
+    }
+    
+    if (_floatingContainer instanceof ResizableFloatingContainer) {
+      ((ResizableFloatingContainer)_floatingContainer).startKeyDragMode();
+    }
+  }
+
+  private void startKeyboardResizeMode()
+  {
+    android.util.Log.d("FloatingKeyboard", "Starting keyboard resize mode via key press");
+    
+    if (!_floatingKeyboardActive || _floatingContainer == null) {
+      android.util.Log.d("FloatingKeyboard", "Cannot start resize mode - floating keyboard not active");
+      return;
+    }
+    
+    // Set visual feedback state
+    visualResizeModeActive = true;
+    if (_floatingKeyboardView != null) {
+      ((Keyboard2View)_floatingKeyboardView).invalidate(); // Trigger redraw
+    }
+    
+    if (_floatingContainer instanceof ResizableFloatingContainer) {
+      ((ResizableFloatingContainer)_floatingContainer).startKeyResizeMode();
+    }
   }
 
   private void updateHandleOpacity(boolean keyboardActive)
@@ -857,43 +932,51 @@ public class FloatingKeyboard2 extends InputMethodService
       keyboardParams.setMargins(0, topSpaceForHandles, 0, 12);
       container.addView(_floatingKeyboardView, keyboardParams);
       
-      // Create drag handle with expanded touch area using calculated spacing
+      // Create drag handle with expanded touch area using calculated spacing (if enabled)
+      if (config.showDragHandle) {
+        // Create drag handle container in the reserved space above keyboard
+        FrameLayout dragTouchContainer = new FrameLayout(this);
+        int dragHandleWidth = (int) config.handle_width_px;
+        int dragHandleHeight = (int) config.handle_height_px;
+        FrameLayout.LayoutParams touchParams = new FrameLayout.LayoutParams(dragHandleWidth, dragHandleHeight);
+        touchParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        
+        // Position handle using only the user-configured margin
+        // When handle_margin_px is 0, handle sits directly on keyboard top edge
+        touchParams.setMargins(0, 0, 0, 0);
+        
+        // Create visual handle (fills entire touch container)
+        _dragHandle = new View(this);
+        GradientDrawable handleDrawable = new GradientDrawable();
+        handleDrawable.setColor(HANDLE_COLOR_INACTIVE);
+        handleDrawable.setCornerRadius(6 * dm.density);
+        _dragHandle.setBackground(handleDrawable);
+        
+        FrameLayout.LayoutParams visualParams = new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, 
+            FrameLayout.LayoutParams.MATCH_PARENT);
+        
+        // Add visual handle to touch container
+        dragTouchContainer.addView(_dragHandle, visualParams);
+        
+        // Add touch container to main container
+        container.addView(dragTouchContainer, touchParams);
+        
+        // Set up touch listener
+        dragTouchContainer.setOnTouchListener(new FloatingDragTouchListener(_dragHandle));
+      }
       
-      // Create drag handle container in the reserved space above keyboard
-      FrameLayout dragTouchContainer = new FrameLayout(this);
-      int dragHandleWidth = (int) config.handle_width_px;
-      int dragHandleHeight = (int) config.handle_height_px;
-      FrameLayout.LayoutParams touchParams = new FrameLayout.LayoutParams(dragHandleWidth, dragHandleHeight);
-      touchParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+      // Create resize handle after keyboard is added (if enabled)
+      if (config.showResizeHandle) {
+        container.createResizeHandle();
+        _resizeHandle = container.getResizeHandle();
+      }
       
-      // Position handle using only the user-configured margin
-      // When handle_margin_px is 0, handle sits directly on keyboard top edge
-      touchParams.setMargins(0, 0, 0, 0);
-      
-      // Create visual handle (fills entire touch container)
-      _dragHandle = new View(this);
-      GradientDrawable handleDrawable = new GradientDrawable();
-      handleDrawable.setColor(HANDLE_COLOR_INACTIVE);
-      handleDrawable.setCornerRadius(6 * dm.density);
-      _dragHandle.setBackground(handleDrawable);
-      
-      FrameLayout.LayoutParams visualParams = new FrameLayout.LayoutParams(
-          FrameLayout.LayoutParams.MATCH_PARENT, 
-          FrameLayout.LayoutParams.MATCH_PARENT);
-      
-      // Add visual handle to touch container
-      dragTouchContainer.addView(_dragHandle, visualParams);
-      
-      // Add touch container to main container
-      container.addView(dragTouchContainer, touchParams);
-      
-      // Create resize handle after keyboard is added
-      container.createResizeHandle();
-      _resizeHandle = container.getResizeHandle();
-      
-      // Create passthrough toggle button
-      container.createPassthroughToggle();
-      _passthroughToggle = container.getPassthroughToggle();
+      // Create passthrough toggle button (if enabled)
+      if (config.showPassthroughHandle) {
+        container.createPassthroughToggle();
+        _passthroughToggle = container.getPassthroughToggle();
+      }
       
       // Set initial handle opacity to active state (80%)
       updateHandleOpacity(true);
@@ -935,8 +1018,7 @@ public class FloatingKeyboard2 extends InputMethodService
         }
       });
       
-      dragTouchContainer.setOnTouchListener(new FloatingDragTouchListener(_dragHandle));
-      android.util.Log.d("FloatingKeyboard", "Drag handle created - Size: " + dragHandleWidth + "x" + dragHandleHeight);
+      android.util.Log.d("FloatingKeyboard", "Drag handle created - Size: " + (config.showDragHandle ? config.handle_width_px + "x" + config.handle_height_px : "disabled"));
       container.setWindowManager(_windowManager, params);
       
       _floatingKeyboardActive = true;
@@ -1051,6 +1133,7 @@ public class FloatingKeyboard2 extends InputMethodService
     private View resizeHandle;
     private View passthroughToggle;
     private FrameLayout passthroughTouchContainer;
+    private ResizeTouchListener resizeTouchListener;
     private WindowManager windowManager;
     private WindowManager.LayoutParams layoutParams;
     private float initialScale = 1.0f;
@@ -1060,7 +1143,17 @@ public class FloatingKeyboard2 extends InputMethodService
     private int initialWidth, initialHeight;
     private int initialWidthPercent, initialHeightPercent;
     private int initialWindowX, initialWindowY;
+    
+    // Key-initiated drag state
+    private boolean isDragging = false;
+    private float dragStartX, dragStartY;
+    private int dragInitialX, dragInitialY;
+    
     private boolean passthroughMode = false;
+    
+    // Key-initiated drag/resize modes
+    private boolean keyDragMode = false;
+    private boolean keyResizeMode = false;
 
     public ResizableFloatingContainer(Context context) {
       super(context);
@@ -1119,6 +1212,68 @@ public class FloatingKeyboard2 extends InputMethodService
       layoutParams = lp;
     }
 
+    public void startKeyDragMode() {
+      keyDragMode = true;
+      android.util.Log.d("FloatingKeyboard", "Key drag mode activated");
+      Toast.makeText(getContext(), "Touch keyboard to start dragging", Toast.LENGTH_SHORT).show();
+    }
+
+    public void startKeyResizeMode() {
+      keyResizeMode = true;
+      android.util.Log.d("FloatingKeyboard", "Key resize mode activated");
+      Toast.makeText(getContext(), "Touch keyboard to start resizing", Toast.LENGTH_SHORT).show();
+    }
+
+    private void startDragFromTouch(MotionEvent event) {
+      android.util.Log.d("FloatingKeyboard", "Starting drag from key-initiated touch");
+      
+      // Initialize drag state similar to FloatingDragTouchListener
+      if (_dragHandle != null) {
+        // Change handle color to show it's active
+        GradientDrawable activeDrawable = new GradientDrawable();
+        activeDrawable.setColor(HANDLE_COLOR_ACTIVE);
+        activeDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density);
+        _dragHandle.setBackground(activeDrawable);
+      }
+      
+      isDragging = true;
+      dragStartX = event.getRawX();
+      dragStartY = event.getRawY();
+      dragInitialX = _floatingLayoutParams.x;
+      dragInitialY = _floatingLayoutParams.y;
+      
+      android.util.Log.d("FloatingKeyboard", "Key-initiated drag start at: " + dragStartX + "," + dragStartY + 
+                        " from window position: " + dragInitialX + "," + dragInitialY);
+      Toast.makeText(getContext(), "Dragging started", Toast.LENGTH_SHORT).show();
+    }
+
+    private void startResizeFromTouch(MotionEvent event) {
+      android.util.Log.d("FloatingKeyboard", "Starting resize from key-initiated touch - delegating to ResizeTouchListener");
+      
+      // Simply delegate to the existing ResizeTouchListener by creating a synthetic DOWN event
+      // and setting isResizing=true so subsequent MOVE events will be handled by the existing logic
+      if (resizeTouchListener != null) {
+        // Create a synthetic ACTION_DOWN event to initialize the ResizeTouchListener
+        MotionEvent syntheticDown = MotionEvent.obtain(
+          event.getDownTime(), 
+          event.getEventTime(), 
+          MotionEvent.ACTION_DOWN, 
+          event.getRawX(), 
+          event.getRawY(), 
+          0
+        );
+        
+        // Pass the synthetic event to the resize touch listener to initialize its state
+        resizeTouchListener.onTouch(resizeHandle, syntheticDown);
+        syntheticDown.recycle();
+        
+        android.util.Log.d("FloatingKeyboard", "Key-initiated resize delegated to ResizeTouchListener");
+        Toast.makeText(getContext(), "Resizing started", Toast.LENGTH_SHORT).show();
+      } else {
+        android.util.Log.e("FloatingKeyboard", "ResizeTouchListener not available for key-initiated resize");
+      }
+    }
+
     public void createResizeHandle() {
       // Create resize handle with expanded touch area using config values
       DisplayMetrics dm = getResources().getDisplayMetrics();
@@ -1152,7 +1307,7 @@ public class FloatingKeyboard2 extends InputMethodService
       resizeTouchContainer.addView(resizeHandle, visualParams);
       
       // Create touch listener after the drawable is set
-      ResizeTouchListener resizeTouchListener = new ResizeTouchListener(resizeHandle);
+      resizeTouchListener = new ResizeTouchListener(resizeHandle);
       resizeTouchContainer.setOnTouchListener(resizeTouchListener);
       addView(resizeTouchContainer, touchParams);
       
@@ -1545,22 +1700,44 @@ public class FloatingKeyboard2 extends InputMethodService
             return false; // Let it pass through completely
           }
         } else {
-          // Normal mode - check for gap touches to enter passthrough mode
-          float keyboardX = containerX - _floatingKeyboardView.getLeft();
-          float keyboardY = containerY - _floatingKeyboardView.getTop();
-          
-          if (keyboardX >= 0 && keyboardX < _floatingKeyboardView.getWidth() && 
-              keyboardY >= 0 && keyboardY < _floatingKeyboardView.getHeight()) {
+          // Normal mode - check for special key modes first, then gap touches
+          if (keyDragMode || keyResizeMode) {
+            // In key-initiated drag/resize mode - intercept any keyboard area touch
+            float keyboardX = containerX - _floatingKeyboardView.getLeft();
+            float keyboardY = containerY - _floatingKeyboardView.getTop();
             
-            KeyboardData.Key key = ((Keyboard2View)_floatingKeyboardView).getKeyAtPosition(keyboardX, keyboardY);
-            if (key == null) {
-              // This is a gap touch - enter passthrough mode
-              android.util.Log.d("FloatingKeyboard", "Gap touch detected - entering passthrough mode");
-              enterPassthroughMode();
-              showDebugToast("Keyboard disabled - tap top-left toggle button to re-enable");
-              return true; // Intercept this touch and consume it
-            } else {
-              android.util.Log.d("FloatingKeyboard", "Key touch detected - normal processing");
+            if (keyboardX >= 0 && keyboardX < _floatingKeyboardView.getWidth() && 
+                keyboardY >= 0 && keyboardY < _floatingKeyboardView.getHeight()) {
+              // Start drag or resize mode
+              if (keyDragMode) {
+                android.util.Log.d("FloatingKeyboard", "Starting key-initiated drag with touch at " + event.getRawX() + "," + event.getRawY());
+                startDragFromTouch(event);
+                keyDragMode = false; // Reset mode after starting
+              } else if (keyResizeMode) {
+                android.util.Log.d("FloatingKeyboard", "Starting key-initiated resize with touch at " + event.getRawX() + "," + event.getRawY());
+                startResizeFromTouch(event);
+                keyResizeMode = false; // Reset mode after starting
+              }
+              return true; // Intercept this touch
+            }
+          } else {
+            // Normal mode - check for gap touches to enter passthrough mode
+            float keyboardX = containerX - _floatingKeyboardView.getLeft();
+            float keyboardY = containerY - _floatingKeyboardView.getTop();
+            
+            if (keyboardX >= 0 && keyboardX < _floatingKeyboardView.getWidth() && 
+                keyboardY >= 0 && keyboardY < _floatingKeyboardView.getHeight()) {
+              
+              KeyboardData.Key key = ((Keyboard2View)_floatingKeyboardView).getKeyAtPosition(keyboardX, keyboardY);
+              if (key == null) {
+                // This is a gap touch - enter passthrough mode
+                android.util.Log.d("FloatingKeyboard", "Gap touch detected - entering passthrough mode");
+                enterPassthroughMode();
+                showDebugToast("Keyboard disabled - tap top-left toggle button to re-enable");
+                return true; // Intercept this touch and consume it
+              } else {
+                android.util.Log.d("FloatingKeyboard", "Key touch detected - normal processing");
+              }
             }
           }
         }
@@ -1571,6 +1748,60 @@ public class FloatingKeyboard2 extends InputMethodService
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+      // Handle key-initiated drag and resize
+      if (isDragging) {
+        switch (event.getAction()) {
+          case MotionEvent.ACTION_MOVE:
+            float deltaX = event.getRawX() - dragStartX;
+            float deltaY = event.getRawY() - dragStartY;
+            
+            _floatingLayoutParams.x = dragInitialX + (int) deltaX;
+            _floatingLayoutParams.y = dragInitialY + (int) deltaY;
+            windowManager.updateViewLayout(this, _floatingLayoutParams);
+            return true;
+            
+          case MotionEvent.ACTION_UP:
+          case MotionEvent.ACTION_CANCEL:
+            isDragging = false;
+            
+            // Clear visual feedback
+            FloatingKeyboard2.clearFloatingModeVisuals();
+            if (_floatingKeyboardView != null) {
+              ((Keyboard2View)_floatingKeyboardView).invalidate(); // Trigger redraw
+            }
+            
+            // Restore drag handle color
+            if (_dragHandle != null) {
+              GradientDrawable inactiveDrawable = new GradientDrawable();
+              inactiveDrawable.setColor(HANDLE_COLOR_INACTIVE);
+              inactiveDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density);
+              _dragHandle.setBackground(inactiveDrawable);
+            }
+            
+            FloatingKeyboard2.this.saveFloatingKeyboardPosition();
+            android.util.Log.d("FloatingKeyboard", "Key-initiated drag ended");
+            return true;
+        }
+      }
+      
+      // Handle key-initiated resize by delegating to ResizeTouchListener
+      if (isResizing && resizeTouchListener != null) {
+        // Delegate all MOVE and UP events to the existing ResizeTouchListener
+        boolean handled = resizeTouchListener.onTouch(resizeHandle, event);
+        
+        // Clear visual feedback on resize end
+        if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+          isResizing = false;
+          FloatingKeyboard2.clearFloatingModeVisuals();
+          if (_floatingKeyboardView != null) {
+            ((Keyboard2View)_floatingKeyboardView).invalidate(); // Trigger redraw
+          }
+          android.util.Log.d("FloatingKeyboard", "Key-initiated resize ended (delegated)");
+        }
+        
+        return handled;
+      }
+      
       if (passthroughMode && event.getAction() == MotionEvent.ACTION_DOWN && _floatingKeyboardView != null) {
         float containerX = event.getX();
         float containerY = event.getY();
@@ -1611,36 +1842,96 @@ public class FloatingKeyboard2 extends InputMethodService
     }
     
     try {
-      // Create a new toggle button
-      _toggleButtonWindow = new View(this);
+      // Get keyboard and layout information to calculate top-right key position
+      KeyboardData keyboard = _floatingKeyboardView != null ? 
+        ((Keyboard2View)_floatingKeyboardView).getCurrentKeyboard() : null;
       
-      GradientDrawable toggleDrawable = new GradientDrawable();
-      toggleDrawable.setColor(HANDLE_COLOR_INACTIVE);
-      toggleDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density);
-      _toggleButtonWindow.setBackground(toggleDrawable);
+      if (keyboard == null || keyboard.rows.isEmpty()) {
+        android.util.Log.e("FloatingKeyboard", "Cannot create toggle button - keyboard data unavailable");
+        return;
+      }
+      
+      // Calculate key dimensions and position
+      DisplayMetrics dm = getResources().getDisplayMetrics();
+      Config config = Config.globalConfig();
+      
+      // Get keyboard view metrics
+      Keyboard2View keyboardView = (Keyboard2View)_floatingKeyboardView;
+      float keyWidth = keyboardView.getKeyWidth();
+      float marginLeft = keyboardView.getMarginLeft();
+      float marginTop = keyboardView.getMarginTop();
+      Theme.Computed tc = keyboardView.getThemeComputed();
+      
+      // Extract colors from existing paint objects
+      int keyColor = tc.key.bg_paint.getColor();
+      int keyActivatedColor = tc.key_activated.bg_paint.getColor();
+      int borderColor = tc.key.border_left_paint.getColor();
+      
+      // Use simple colors for text - these will work with most themes
+      int labelColor = 0xFF2E3440; // Nord dark blue-gray for normal state
+      int activatedLabelColor = 0xFFD8DEE9; // Nord light gray for activated state
+      
+      // Find the top-right key (first row, last column)
+      KeyboardData.Row firstRow = keyboard.rows.get(0);
+      KeyboardData.Key topRightKey = firstRow.keys.get(firstRow.keys.size() - 1);
+      
+      // Calculate the position and size of the top-right key
+      float x = marginLeft + tc.margin_left;
+      for (int i = 0; i < firstRow.keys.size() - 1; i++) {
+        KeyboardData.Key key = firstRow.keys.get(i);
+        x += key.shift * keyWidth + key.width * keyWidth;
+      }
+      x += topRightKey.shift * keyWidth;
+      
+      float y = marginTop + firstRow.shift * tc.row_height;
+      float keyW = keyWidth * topRightKey.width - tc.horizontal_margin;
+      float keyH = firstRow.height * tc.row_height - tc.vertical_margin;
+      
+      // Create a custom TextView to display the keyboard glyph
+      android.widget.TextView toggleButton = new android.widget.TextView(this);
+      toggleButton.setText("⌨");
+      toggleButton.setTextColor(labelColor);
+      toggleButton.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, keyH * 0.4f); // Scale text to key
+      toggleButton.setGravity(android.view.Gravity.CENTER);
+      
+      // Style the button to look like a keyboard key
+      android.graphics.drawable.GradientDrawable keyDrawable = new android.graphics.drawable.GradientDrawable();
+      keyDrawable.setColor(keyColor);
+      keyDrawable.setCornerRadius(tc.key.border_radius);
+      if (tc.key.border_width > 0) {
+        keyDrawable.setStroke((int)tc.key.border_width, borderColor);
+      }
+      toggleButton.setBackground(keyDrawable);
+      
+      _toggleButtonWindow = toggleButton;
       
       // Set up touch listener for the toggle button
       _toggleButtonWindow.setOnTouchListener(new View.OnTouchListener() {
-        private GradientDrawable originalDrawable = toggleDrawable;
+        private android.graphics.drawable.GradientDrawable originalDrawable = keyDrawable;
         
         @Override
         public boolean onTouch(View v, MotionEvent event) {
-          android.util.Log.d("FloatingKeyboard", "Separate toggle button touched: " + event.getAction());
+          android.util.Log.d("FloatingKeyboard", "Re-enable button touched: " + event.getAction());
           
           switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-              // Change handle color when touched
-              GradientDrawable activeDrawable = new GradientDrawable();
-              activeDrawable.setColor(HANDLE_COLOR_ACTIVE);
-              activeDrawable.setCornerRadius(6 * getResources().getDisplayMetrics().density);
+              // Style like an activated key
+              android.graphics.drawable.GradientDrawable activeDrawable = new android.graphics.drawable.GradientDrawable();
+              activeDrawable.setColor(keyActivatedColor);
+              activeDrawable.setCornerRadius(tc.key_activated.border_radius);
+              if (tc.key_activated.border_width > 0) {
+                activeDrawable.setStroke((int)tc.key_activated.border_width, borderColor);
+              }
               v.setBackground(activeDrawable);
+              ((android.widget.TextView)v).setTextColor(activatedLabelColor);
               return true;
-
-            case MotionEvent.ACTION_UP:
-              // Restore original handle color
-              v.setBackground(originalDrawable);
               
-              // Toggle back to normal mode
+            case MotionEvent.ACTION_UP:
+              // Restore original key style
+              v.setBackground(originalDrawable);
+              ((android.widget.TextView)v).setTextColor(labelColor);
+              
+              // Exit passthrough mode
               if (_floatingContainer instanceof ResizableFloatingContainer) {
                 ((ResizableFloatingContainer)_floatingContainer).exitPassthroughMode();
               }
@@ -1648,8 +1939,9 @@ public class FloatingKeyboard2 extends InputMethodService
               return true;
               
             case MotionEvent.ACTION_CANCEL:
-              // Restore original handle color
+              // Restore original key style
               v.setBackground(originalDrawable);
+              ((android.widget.TextView)v).setTextColor(labelColor);
               return true;
           }
           
@@ -1657,34 +1949,23 @@ public class FloatingKeyboard2 extends InputMethodService
         }
       });
       
-      DisplayMetrics dm = getResources().getDisplayMetrics();
-      Config config = Config.globalConfig();
-      int handleWidth = (int) config.handle_width_px;
-      int handleHeight = (int) config.handle_height_px;
-      
-      // Position it at the same location as the main window's toggle button would be
+      // Position the toggle button exactly where the top-right key would be
       _toggleLayoutParams = new WindowManager.LayoutParams(
-          handleWidth,
-          handleHeight,
+          (int)keyW,
+          (int)keyH,
           VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE,
           WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
           PixelFormat.TRANSLUCENT);
       
       _toggleLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
-      
-      // Calculate the exact position of the visual toggle handle in the main window
-      // No centering needed since visual and touch areas are now the same size
-      int centeringOffsetX = 0;
-      int centeringOffsetY = 0;
-      
-      int sideMarginPx = (int) (HANDLE_MARGIN_SIDE_DP * dm.density);
-      int topMarginPx = (int) (HANDLE_MARGIN_TOP_DP * dm.density);
-      _toggleLayoutParams.x = _floatingLayoutParams.x + sideMarginPx + centeringOffsetX;
-      _toggleLayoutParams.y = _floatingLayoutParams.y + topMarginPx + centeringOffsetY;
+      _toggleLayoutParams.x = _floatingLayoutParams.x + (int)x;
+      _toggleLayoutParams.y = _floatingLayoutParams.y + (int)y;
       
       _windowManager.addView(_toggleButtonWindow, _toggleLayoutParams);
       
-      android.util.Log.d("FloatingKeyboard", "Separate toggle button window created at " + _toggleLayoutParams.x + "," + _toggleLayoutParams.y);
+      android.util.Log.d("FloatingKeyboard", "Re-enable button created at top-right key position: " + 
+                        _toggleLayoutParams.x + "," + _toggleLayoutParams.y + 
+                        " with size: " + (int)keyW + "x" + (int)keyH);
     } catch (Exception e) {
       android.util.Log.e("FloatingKeyboard", "Error creating toggle button window: " + e.getMessage());
     }

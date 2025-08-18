@@ -390,7 +390,7 @@ public class Keyboard2View extends View
       {
         x += k.shift * _keyWidth;
         float keyW = _keyWidth * k.width - _tc.horizontal_margin;
-        boolean isKeyDown = _pointers.isKeyDown(k);
+        boolean isKeyDown = _pointers.isKeyDown(k) || isFloatingModeKeyActive(k);
         Theme.Computed.Key tc_key = isKeyDown ? _tc.key_activated : _tc.key;
         drawKeyFrame(canvas, x, y, keyW, keyH, tc_key);
         if (k.keys[0] != null)
@@ -534,5 +534,24 @@ public class Keyboard2View extends View
     float smaller_font = k.hasFlagsAny(KeyValue.FLAG_SMALLER_FONT) ? 0.75f : 1.f;
     float label_size = main_label ? _mainLabelSize : _subLabelSize;
     return label_size * smaller_font;
+  }
+
+  /** Check if a key should appear active due to floating mode states */
+  private boolean isFloatingModeKeyActive(KeyboardData.Key k)
+  {
+    // Check all key positions (center + 8 corners/edges) for floating actions
+    for (int i = 0; i < k.keys.length; i++) {
+      KeyValue kv = k.keys[i];
+      if (kv != null && kv.getKind() == KeyValue.Kind.Event) {
+        KeyValue.Event event = kv.getEvent();
+        if (event == KeyValue.Event.FLOATING_MOVE && FloatingKeyboard2.isFloatingDragModeActive()) {
+          return true;
+        }
+        if (event == KeyValue.Event.FLOATING_RESIZE && FloatingKeyboard2.isFloatingResizeModeActive()) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }
