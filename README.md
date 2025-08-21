@@ -43,6 +43,11 @@ Added a `make {debug,release,clean}` for Claude to use to build on Nix-enabled s
 
 ## TODO
 
-### Features & Functionality
+### UI
+- [ ] There is currently only a setting for "Margin Bottom" and "Horizontal Margin". We should add similar settings for "Margin Top"; by default it looks like the top margin is hardcoded at non-zero so without being able to configure this, it looks imbalanced.
 
+### Features & Functionality
+- [ ] Respect Persistence mode in the non-floating keyboard IME; when Persistence is toggled, the keyboard should not respect OS-level hide-IME signals (like exiting a text field or the Android "hide keyboard" navbar toggle), and always remain visible until Persistence is toggled off.
+
+### Future
 - Entire app config is possible to drive from storage as e.g. `.unexpected_keyboard.json`, not just layouts.

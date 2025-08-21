@@ -25,8 +25,7 @@ public final class Config
 
   private final SharedPreferences _prefs;
 
-  // From resources
-  public final float marginTop;
+  public float margin_top;
   public final float keyPadding;
 
   public final float labelTextSize;
@@ -80,15 +79,11 @@ public final class Config
   public boolean clipboard_history_enabled;
   public boolean keyboard_persistence_enabled;
   public String selected_font;
-  public float handle_height_px;
-  public float handle_width_px;
-  public float handle_margin_px;
   public int keyboardDisabledOpacity; // 0 - 100 (percentage)
-  public boolean showDragHandle;
-  public boolean showResizeHandle;
-  public boolean showPassthroughHandle;
   public int snapWidthPercent; // Percentage of screen width for snap operations
   public boolean isFloatingDocked; // Current docked state
+  public boolean rememberFloatingReEnableButtonPosition; // Whether to remember re-enable button position
+  public String floatingPassthroughKeyboardXml; // XML definition for passthrough keyboard
 
   // Dynamically set
   public boolean shouldOfferVoiceTyping;
@@ -112,7 +107,6 @@ public final class Config
   {
     _prefs = prefs;
     // static values
-    marginTop = res.getDimension(R.dimen.margin_top);
     keyPadding = res.getDimension(R.dimen.key_padding);
     labelTextSize = 0.33f;
     sublabelTextSize = 0.22f;
@@ -176,6 +170,7 @@ public final class Config
     longPressInterval = _prefs.getInt("longpress_interval", 65);
     keyrepeat_enabled = _prefs.getBoolean("keyrepeat_enabled", true);
     margin_bottom = get_dip_pref_oriented(dm, "margin_bottom", 7, 3);
+    margin_top = get_dip_pref_oriented(dm, "margin_top", 3, 3);
     key_vertical_margin = get_dip_pref(dm, "key_vertical_margin", 1.5f) / 100;
     key_horizontal_margin = get_dip_pref(dm, "key_horizontal_margin", 2) / 100;
     // Load pixel-based margins
@@ -217,16 +212,14 @@ public final class Config
     clipboard_history_enabled = _prefs.getBoolean("clipboard_history_enabled", false);
     keyboard_persistence_enabled = _prefs.getBoolean("keyboard_persistence_enabled", false);
     selected_font = _prefs.getString("font", "default");
-    // Handle dimensions and spacing in pixels
-    handle_height_px = get_dip_pref(dm, "handle_height_px", 24.0f);
-    handle_width_px = get_dip_pref(dm, "handle_width_px", dm.widthPixels * 0.1f / dm.density);
-    handle_margin_px = get_dip_pref(dm, "handle_margin_px", 3.0f);
     keyboardDisabledOpacity = _prefs.getInt("keyboard_disabled_opacity", 30);
-    showDragHandle = _prefs.getBoolean("show_drag_handle", true);
-    showResizeHandle = _prefs.getBoolean("show_resize_handle", true);
-    showPassthroughHandle = _prefs.getBoolean("show_passthrough_handle", true);
     snapWidthPercent = _prefs.getInt("snap_width_percent", 50);
     isFloatingDocked = _prefs.getBoolean("is_floating_docked", false);
+    rememberFloatingReEnableButtonPosition = _prefs.getBoolean("remember_floating_reenable_button_position", true);
+    floatingPassthroughKeyboardXml = _prefs.getString("floating_passthrough_keyboard_xml", 
+      "<keyboard bottom_row=\"false\" embedded_number_row=\"false\" name=\"Floating Passthrough\" script=\"latin\" numpad_script=\"latin\">" +
+      "<row><key c=\"⌨:floating_disable_passthrough\" e=\"right\" n=\"up\" s=\"down\" w=\"left\" nw=\"⛶:floating_move\" /></row>" +
+      "</keyboard>");
 
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;
@@ -268,6 +261,13 @@ public final class Config
     isFloatingDocked = docked;
     _prefs.edit().putBoolean("is_floating_docked", docked).commit();
   }
+
+  public void set_remember_floating_reenable_button_position(boolean remember)
+  {
+    rememberFloatingReEnableButtonPosition = remember;
+    _prefs.edit().putBoolean("remember_floating_reenable_button_position", remember).commit();
+  }
+
 
   private float get_dip_pref(DisplayMetrics dm, String pref_name, float def)
   {

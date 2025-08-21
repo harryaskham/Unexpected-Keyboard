@@ -58,6 +58,12 @@
       <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_width_unfolded" android:title="Width (Portrait Unfolded)" android:summary="%s%%" android:defaultValue="100" min="50" max="100"/>
       <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_width_landscape_unfolded" android:title="Width (Landscape Unfolded)" android:summary="%s%%" android:defaultValue="100" min="50" max="100"/>
     </PreferenceScreen>
+    <PreferenceScreen android:title="@string/pref_margin_top_title">
+      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="margin_top_portrait" android:title="@string/pref_portrait" android:summary="%sdp" android:defaultValue="3" min="0" max="50"/>
+      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="margin_top_landscape" android:title="@string/pref_landscape" android:summary="%sdp" android:defaultValue="3" min="0" max="50"/>
+      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="margin_top_portrait_unfolded" android:title="@string/pref_portrait_unfolded" android:summary="%sdp" android:defaultValue="3" min="0" max="50"/>
+      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="margin_top_landscape_unfolded" android:title="@string/pref_landscape_unfolded" android:summary="%sdp" android:defaultValue="3" min="0" max="50"/>
+    </PreferenceScreen>
     <PreferenceScreen android:title="@string/pref_horizontal_margin_title">
       <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="horizontal_margin_portrait" android:title="@string/pref_portrait" android:summary="%sdp" android:defaultValue="3" min="0" max="30"/>
       <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="horizontal_margin_landscape" android:title="@string/pref_landscape" android:summary="%sdp" android:defaultValue="28" min="0" max="200"/>
@@ -72,16 +78,9 @@
     <CheckBoxPreference android:key="use_pixel_margins" android:title="@string/pref_use_pixel_margins_title" android:summary="@string/pref_use_pixel_margins_summary" android:defaultValue="false"/>
     <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="key_vertical_margin_px" android:title="@string/pref_key_vertical_space_px" android:summary="%.1fpx" android:defaultValue="2.0" min="0.0" max="20.0" step="0.1" android:dependency="use_pixel_margins"/>
     <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="key_horizontal_margin_px" android:title="@string/pref_key_horizontal_space_px" android:summary="%.1fpx" android:defaultValue="3.0" min="0.0" max="20.0" step="0.1" android:dependency="use_pixel_margins"/>
-    <PreferenceScreen android:title="Handle Configuration">
-      <CheckBoxPreference android:key="show_drag_handle" android:title="@string/pref_show_drag_handle" android:summary="@string/pref_show_drag_handle_summary" android:defaultValue="true"/>
-      <CheckBoxPreference android:key="show_resize_handle" android:title="@string/pref_show_resize_handle" android:summary="@string/pref_show_resize_handle_summary" android:defaultValue="true"/>
-      <CheckBoxPreference android:key="show_passthrough_handle" android:title="@string/pref_show_passthrough_handle" android:summary="@string/pref_show_passthrough_handle_summary" android:defaultValue="true"/>
-      <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="handle_height_px" android:title="Handle Height" android:summary="%.1fpx" android:defaultValue="24.0" min="1.0" max="48.0" step="0.1"/>
-      <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="handle_width_px" android:title="Handle Width" android:summary="%.1fpx" android:defaultValue="36.0" min="1.0" max="80.0" step="0.1"/>
-      <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="handle_margin_px" android:title="Handle Margin" android:summary="%.1fpx" android:defaultValue="3.0" min="0.0" max="20.0" step="0.1"/>
-    </PreferenceScreen>
     <PreferenceScreen android:title="Floating Keyboard Window Management">
       <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="snap_width_percent" android:title="Snap Width" android:summary="%s%% of screen width" android:defaultValue="50" min="25" max="100" step="5"/>
+      <CheckBoxPreference android:key="remember_floating_reenable_button_position" android:title="Remember Re-enable Button Position" android:summary="Remember the position of the floating re-enable button between sessions" android:defaultValue="true"/>
     </PreferenceScreen>
     <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="keyboard_disabled_opacity" android:title="@string/pref_keyboard_disabled_opacity" android:summary="%s%%" android:defaultValue="30" min="0" max="100" step="1"/>
     <CheckBoxPreference android:key="border_config" android:title="@string/pref_border_config_title" android:defaultValue="false"/>

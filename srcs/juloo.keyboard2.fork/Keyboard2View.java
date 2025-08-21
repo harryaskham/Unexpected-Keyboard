@@ -228,7 +228,7 @@ public class Keyboard2View extends View
 
   private KeyboardData.Row getRowAtPosition(float ty)
   {
-    float y = _config.marginTop;
+    float y = _config.margin_top;
     if (ty < y)
       return null;
     for (KeyboardData.Row row : _keyboard.rows)
@@ -276,7 +276,7 @@ public class Keyboard2View extends View
 
   public float getMarginTop()
   {
-    return _config.marginTop;
+    return _config.margin_top;
   }
 
   public Theme.Computed getThemeComputed()
@@ -323,7 +323,7 @@ public class Keyboard2View extends View
     _subLabelSize = labelBaseSize * _config.sublabelTextSize * _config.subLabelSize;
     int height =
       (int)(_tc.row_height * _keyboard.keysHeight
-          + _config.marginTop + _marginBottom);
+          + _config.margin_top + _marginBottom);
     setMeasuredDimension(width, height);
   }
 
@@ -337,7 +337,7 @@ public class Keyboard2View extends View
       // Disable the back-gesture on the keyboard area
       Rect keyboard_area = new Rect(
           left + (int)_marginLeft,
-          top + (int)_config.marginTop,
+          top + (int)_config.margin_top,
           right - (int)_marginRight,
           bottom - (int)_marginBottom);
       setSystemGestureExclusionRects(Arrays.asList(keyboard_area));

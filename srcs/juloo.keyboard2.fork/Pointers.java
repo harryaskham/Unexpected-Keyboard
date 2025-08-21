@@ -61,8 +61,14 @@ public final class Pointers implements Handler.Callback
 
   public void clear()
   {
-    for (Pointer p : _ptrs)
+    // Send key_up events for all active pointers before clearing to prevent stuck keys
+    for (Pointer p : _ptrs) {
       stopLongPress(p);
+      // Send key_up event if the pointer has a value and isn't already latched
+      if (p.value != null && !p.hasFlagsAny(FLAG_P_LATCHED | FLAG_P_FAKE)) {
+        _handler.onPointerUp(p.value, getModifiers());
+      }
+    }
     _ptrs.clear();
   }
 

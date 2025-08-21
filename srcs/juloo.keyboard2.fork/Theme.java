@@ -151,7 +151,7 @@ public class Theme
       }
       // Add half of the key margin on the left and on the top as it's also
       // added on the right and on the bottom of every keys.
-      margin_top = config.marginTop + vertical_margin / 2;
+      margin_top = config.margin_top + vertical_margin / 2;
       margin_left = horizontal_margin / 2;
       key = new Key(theme, config, keyWidth, false, context);
       key_activated = new Key(theme, config, keyWidth, true, context);

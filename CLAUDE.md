@@ -9,7 +9,7 @@ This is a personal fork of Unexpected Keyboard - an Android virtual keyboard app
 ## Build System & Commands
 
 **Primary build commands:**
-- `make debug` - Build debug APK using Nix environment
+- `make debug` - Build debug APK using Nix environment. Run this before and after major changes to ensure the build remains working.
 - `make release` - Build release APK  
 - `make clean` - Clean build artifacts
 
