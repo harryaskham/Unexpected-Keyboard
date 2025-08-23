@@ -90,9 +90,11 @@ public class FloatingKeyboard2 extends InputMethodService
   private View _toggleButtonWindow;
   private WindowManager.LayoutParams _toggleLayoutParams;
   
-  // Position of the key that triggered passthrough mode (for button placement)
+  // Position and dimensions of the key that triggered passthrough mode (for button placement)
   private int _triggeringKeyScreenX = -1;
   private int _triggeringKeyScreenY = -1;
+  private float _triggeringKeyWidth = -1;
+  private float _triggeringKeyHeight = -1;
   
   // Removed handle references - functionality now handled by key values
 
@@ -774,6 +776,17 @@ public class FloatingKeyboard2 extends InputMethodService
     DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
     int screenWidth = displayMetrics.widthPixels;
     int screenHeight = displayMetrics.heightPixels;
+    
+    // For overlay windows, we need to account for system UI constraints
+    // Get the actual usable area by checking the window manager's display metrics
+    WindowManager wm = getSystemService(WindowManager.class);
+    if (wm != null) {
+      android.graphics.Point size = new android.graphics.Point();
+      wm.getDefaultDisplay().getRealSize(size);
+      screenWidth = size.x;
+      screenHeight = size.y;
+      android.util.Log.d("FloatingKeyboard", "Real screen size: " + screenWidth + "x" + screenHeight + " vs metrics: " + displayMetrics.widthPixels + "x" + displayMetrics.heightPixels);
+    }
     int keyboardWidth = _floatingContainer.getWidth();
     int keyboardHeight = _floatingContainer.getHeight();
     
@@ -1344,6 +1357,9 @@ public class FloatingKeyboard2 extends InputMethodService
           case MotionEvent.ACTION_CANCEL:
             isDragging = false;
             
+            // Clamp position to screen bounds after drag ends
+            clampKeyboardPositionToScreen();
+            
             Config config = Config.globalConfig();
             android.util.Log.d("FloatingKeyboard", "Drag ended - config percentages: " + config.floatingKeyboardWidthPercent + "% x " + config.floatingKeyboardHeightPercent + "%");
             
@@ -1535,16 +1551,17 @@ public class FloatingKeyboard2 extends InputMethodService
       // Use the captured triggering key position if available, otherwise fall back to top-right
       float x, y, keyW, keyH;
       
-      if (_triggeringKeyScreenX >= 0 && _triggeringKeyScreenY >= 0) {
+      if (_triggeringKeyScreenX >= 0 && _triggeringKeyScreenY >= 0 && 
+          _triggeringKeyWidth > 0 && _triggeringKeyHeight > 0) {
         // Convert captured screen coordinates back to keyboard-relative coordinates
         x = _triggeringKeyScreenX - _floatingLayoutParams.x;
         y = _triggeringKeyScreenY - _floatingLayoutParams.y;
         
-        // Use standard key dimensions for the button
-        keyW = keyWidth - tc.horizontal_margin;
-        keyH = tc.row_height - tc.vertical_margin;
+        // Use captured key dimensions for exact match
+        keyW = _triggeringKeyWidth;
+        keyH = _triggeringKeyHeight;
         
-        android.util.Log.d("FloatingKeyboard", "Using captured key position for toggle button: (" + x + "," + y + ")");
+        android.util.Log.d("FloatingKeyboard", "Using captured key dimensions for toggle button: (" + x + "," + y + ") size=(" + keyW + "x" + keyH + ")");
       } else {
         // Fallback: Find the top-right key (first row, last column)
         KeyboardData.Row firstRow = keyboard.rows.get(0);
@@ -1812,9 +1829,11 @@ public class FloatingKeyboard2 extends InputMethodService
 
       if (triggeringKey == null) {
         android.util.Log.w("FloatingKeyboard", "Could not find key with FLOATING_ENABLE_PASSTHROUGH event");
-        // Reset to invalid position
+        // Reset to invalid position and dimensions
         _triggeringKeyScreenX = -1;
         _triggeringKeyScreenY = -1;
+        _triggeringKeyWidth = -1;
+        _triggeringKeyHeight = -1;
         return;
       }
 
@@ -1840,22 +1859,30 @@ public class FloatingKeyboard2 extends InputMethodService
       }
       y += triggeringRow.shift * tc.row_height;
 
+      // Calculate key dimensions using the same logic as Keyboard2View
+      _triggeringKeyWidth = keyWidth * triggeringKey.width - tc.horizontal_margin;
+      _triggeringKeyHeight = triggeringRow.height * tc.row_height - tc.vertical_margin;
+
       // Convert to screen coordinates
       if (_floatingLayoutParams != null) {
         _triggeringKeyScreenX = _floatingLayoutParams.x + (int)x;
         _triggeringKeyScreenY = _floatingLayoutParams.y + (int)y;
         
-        android.util.Log.d("FloatingKeyboard", "Captured triggering key position: (" + _triggeringKeyScreenX + "," + _triggeringKeyScreenY + ")");
+        android.util.Log.d("FloatingKeyboard", "Captured triggering key: position=(" + _triggeringKeyScreenX + "," + _triggeringKeyScreenY + "), dimensions=(" + _triggeringKeyWidth + "x" + _triggeringKeyHeight + ")");
       } else {
         android.util.Log.e("FloatingKeyboard", "Cannot convert to screen coordinates - floating layout params is null");
         _triggeringKeyScreenX = -1;
         _triggeringKeyScreenY = -1;
+        _triggeringKeyWidth = -1;
+        _triggeringKeyHeight = -1;
       }
 
     } catch (Exception e) {
       android.util.Log.e("FloatingKeyboard", "Error capturing triggering key position: " + e.getMessage());
       _triggeringKeyScreenX = -1;
       _triggeringKeyScreenY = -1;
+      _triggeringKeyWidth = -1;
+      _triggeringKeyHeight = -1;
     }
   }
 
@@ -2513,23 +2540,7 @@ public class FloatingKeyboard2 extends InputMethodService
       float textOffset = (textHeight / 2) - fm.descent;
       canvas.drawText(mainGlyph, centerX, centerY + textOffset, textPaint);
       
-      // Draw directional arrows in corners (smaller)
-      float arrowSize = arrowPaint.getTextSize();
-      Paint.FontMetrics arrowFm = arrowPaint.getFontMetrics();
-      float arrowHeight = arrowFm.descent - arrowFm.ascent;
-      float arrowOffset = (arrowHeight / 2) - arrowFm.descent;
-      
-      // Top arrow (↑) - maps to up key
-      canvas.drawText("↑", centerX, height * 0.15f + arrowOffset, arrowPaint);
-      
-      // Bottom arrow (↓) - maps to down key  
-      canvas.drawText("↓", centerX, height * 0.85f + arrowOffset, arrowPaint);
-      
-      // Left arrow (←) - maps to left key
-      canvas.drawText("←", width * 0.15f, centerY + arrowOffset, arrowPaint);
-      
-      // Right arrow (→) - maps to right key
-      canvas.drawText("→", width * 0.85f, centerY + arrowOffset, arrowPaint);
+      // No directional arrows needed - just the center keyboard glyph
     }
   }
 }
