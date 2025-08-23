@@ -90,6 +90,10 @@ public class FloatingKeyboard2 extends InputMethodService
   private View _toggleButtonWindow;
   private WindowManager.LayoutParams _toggleLayoutParams;
   
+  // Position of the key that triggered passthrough mode (for button placement)
+  private int _triggeringKeyScreenX = -1;
+  private int _triggeringKeyScreenY = -1;
+  
   // Removed handle references - functionality now handled by key values
 
   KeyboardData current_layout_unmodified()
@@ -444,6 +448,8 @@ public class FloatingKeyboard2 extends InputMethodService
           break;
 
         case FLOATING_ENABLE_PASSTHROUGH:
+          // Capture the position of the triggering key before entering passthrough mode
+          capturePassthroughTriggeringKeyPosition();
           // Toggle passthrough mode (same as clicking the disable handle)
           if (_floatingContainer instanceof ResizableFloatingContainer) {
             ((ResizableFloatingContainer)_floatingContainer).enterPassthroughMode();
@@ -1190,8 +1196,8 @@ public class FloatingKeyboard2 extends InputMethodService
           
           // No handles to update opacity
           
-          // Remove the passthrough keyboard instead of toggle button
-          removePassthroughKeyboard();
+          // Remove the toggle button window
+          removeToggleButtonWindow();
           
           android.util.Log.d("FloatingKeyboard", "Exited passthrough mode - main window touchable, keyboard restored, passthrough keyboard removed");
         } catch (Exception e) {
@@ -1526,21 +1532,38 @@ public class FloatingKeyboard2 extends InputMethodService
       int labelColor = 0xFFD8DEE9; // Nord light gray - more visible
       int activatedLabelColor = 0xFF2E3440; // Nord dark blue-gray for activated state
       
-      // Find the top-right key (first row, last column)
-      KeyboardData.Row firstRow = keyboard.rows.get(0);
-      KeyboardData.Key topRightKey = firstRow.keys.get(firstRow.keys.size() - 1);
+      // Use the captured triggering key position if available, otherwise fall back to top-right
+      float x, y, keyW, keyH;
       
-      // Calculate the position and size of the top-right key
-      float x = marginLeft + tc.margin_left;
-      for (int i = 0; i < firstRow.keys.size() - 1; i++) {
-        KeyboardData.Key key = firstRow.keys.get(i);
-        x += key.shift * keyWidth + key.width * keyWidth;
+      if (_triggeringKeyScreenX >= 0 && _triggeringKeyScreenY >= 0) {
+        // Convert captured screen coordinates back to keyboard-relative coordinates
+        x = _triggeringKeyScreenX - _floatingLayoutParams.x;
+        y = _triggeringKeyScreenY - _floatingLayoutParams.y;
+        
+        // Use standard key dimensions for the button
+        keyW = keyWidth - tc.horizontal_margin;
+        keyH = tc.row_height - tc.vertical_margin;
+        
+        android.util.Log.d("FloatingKeyboard", "Using captured key position for toggle button: (" + x + "," + y + ")");
+      } else {
+        // Fallback: Find the top-right key (first row, last column)
+        KeyboardData.Row firstRow = keyboard.rows.get(0);
+        KeyboardData.Key topRightKey = firstRow.keys.get(firstRow.keys.size() - 1);
+        
+        // Calculate the position and size of the top-right key
+        x = marginLeft + tc.margin_left;
+        for (int i = 0; i < firstRow.keys.size() - 1; i++) {
+          KeyboardData.Key key = firstRow.keys.get(i);
+          x += key.shift * keyWidth + key.width * keyWidth;
+        }
+        x += topRightKey.shift * keyWidth;
+        
+        y = tc.margin_top + firstRow.shift * tc.row_height;
+        keyW = keyWidth * topRightKey.width - tc.horizontal_margin;
+        keyH = firstRow.height * tc.row_height - tc.vertical_margin;
+        
+        android.util.Log.d("FloatingKeyboard", "Using fallback top-right key position for toggle button: (" + x + "," + y + ")");
       }
-      x += topRightKey.shift * keyWidth;
-      
-      float y = tc.margin_top + firstRow.shift * tc.row_height;
-      float keyW = keyWidth * topRightKey.width - tc.horizontal_margin;
-      float keyH = firstRow.height * tc.row_height - tc.vertical_margin;
       
       // Create a custom view to display the keyboard glyph with directional arrows
       DirectionalReEnableButton toggleButton = new DirectionalReEnableButton(this);
@@ -1691,7 +1714,7 @@ public class FloatingKeyboard2 extends InputMethodService
       
       _toggleLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
       
-      // Check for saved position, otherwise use default top-right key position
+      // Position priority: 1) Saved position (if enabled), 2) Captured triggering key position, 3) Default fallback position
       android.content.SharedPreferences prefs = getSharedPreferences("FloatingKeyboard", MODE_PRIVATE);
       boolean hasSavedPosition = prefs.contains("toggle_button_x") && prefs.contains("toggle_button_y");
       
@@ -1699,10 +1722,15 @@ public class FloatingKeyboard2 extends InputMethodService
         _toggleLayoutParams.x = prefs.getInt("toggle_button_x", _floatingLayoutParams.x + (int)x);
         _toggleLayoutParams.y = prefs.getInt("toggle_button_y", _floatingLayoutParams.y + (int)y);
         android.util.Log.d("FloatingKeyboard", "Using saved toggle button position: " + _toggleLayoutParams.x + "," + _toggleLayoutParams.y);
+      } else if (_triggeringKeyScreenX >= 0 && _triggeringKeyScreenY >= 0) {
+        // Use the captured triggering key screen position directly
+        _toggleLayoutParams.x = _triggeringKeyScreenX;
+        _toggleLayoutParams.y = _triggeringKeyScreenY;
+        android.util.Log.d("FloatingKeyboard", "Using captured triggering key position: " + _toggleLayoutParams.x + "," + _toggleLayoutParams.y);
       } else {
         _toggleLayoutParams.x = _floatingLayoutParams.x + (int)x;
         _toggleLayoutParams.y = _floatingLayoutParams.y + (int)y;
-        android.util.Log.d("FloatingKeyboard", "Using default toggle button position: " + _toggleLayoutParams.x + "," + _toggleLayoutParams.y);
+        android.util.Log.d("FloatingKeyboard", "Using fallback toggle button position: " + _toggleLayoutParams.x + "," + _toggleLayoutParams.y);
       }
       
       _windowManager.addView(_toggleButtonWindow, _toggleLayoutParams);
@@ -1743,6 +1771,91 @@ public class FloatingKeyboard2 extends InputMethodService
       } catch (Exception e) {
         android.util.Log.e("FloatingKeyboard", "Error removing toggle button window: " + e.getMessage());
       }
+    }
+  }
+
+  private void capturePassthroughTriggeringKeyPosition() {
+    try {
+      if (_floatingKeyboardView == null) {
+        android.util.Log.e("FloatingKeyboard", "Cannot capture key position - keyboard view is null");
+        return;
+      }
+
+      KeyboardData keyboard = ((Keyboard2View)_floatingKeyboardView).getCurrentKeyboard();
+      if (keyboard == null) {
+        android.util.Log.e("FloatingKeyboard", "Cannot capture key position - keyboard data is null");
+        return;
+      }
+
+      // Find the key that has FLOATING_ENABLE_PASSTHROUGH event
+      KeyboardData.Key triggeringKey = null;
+      int rowIndex = -1;
+      int keyIndex = -1;
+
+      outerLoop:
+      for (int r = 0; r < keyboard.rows.size(); r++) {
+        KeyboardData.Row row = keyboard.rows.get(r);
+        for (int k = 0; k < row.keys.size(); k++) {
+          KeyboardData.Key key = row.keys.get(k);
+          // Check all key positions (center + corners/edges) for the passthrough event
+          for (KeyValue keyValue : key.keys) {
+            if (keyValue != null && keyValue.getKind() == KeyValue.Kind.Event && 
+                keyValue.getEvent() == KeyValue.Event.FLOATING_ENABLE_PASSTHROUGH) {
+              triggeringKey = key;
+              rowIndex = r;
+              keyIndex = k;
+              break outerLoop;
+            }
+          }
+        }
+      }
+
+      if (triggeringKey == null) {
+        android.util.Log.w("FloatingKeyboard", "Could not find key with FLOATING_ENABLE_PASSTHROUGH event");
+        // Reset to invalid position
+        _triggeringKeyScreenX = -1;
+        _triggeringKeyScreenY = -1;
+        return;
+      }
+
+      // Calculate the position of the triggering key using the same logic as Keyboard2View drawing
+      Keyboard2View keyboardView = (Keyboard2View)_floatingKeyboardView;
+      float keyWidth = keyboardView.getKeyWidth();
+      float marginLeft = keyboardView.getMarginLeft();
+      Theme.Computed tc = keyboardView.getThemeComputed();
+
+      // Calculate X position
+      KeyboardData.Row triggeringRow = keyboard.rows.get(rowIndex);
+      float x = marginLeft + tc.margin_left;
+      for (int i = 0; i < keyIndex; i++) {
+        KeyboardData.Key key = triggeringRow.keys.get(i);
+        x += key.shift * keyWidth + key.width * keyWidth;
+      }
+      x += triggeringKey.shift * keyWidth;
+
+      // Calculate Y position  
+      float y = tc.margin_top;
+      for (int i = 0; i < rowIndex; i++) {
+        y += keyboard.rows.get(i).height * tc.row_height;
+      }
+      y += triggeringRow.shift * tc.row_height;
+
+      // Convert to screen coordinates
+      if (_floatingLayoutParams != null) {
+        _triggeringKeyScreenX = _floatingLayoutParams.x + (int)x;
+        _triggeringKeyScreenY = _floatingLayoutParams.y + (int)y;
+        
+        android.util.Log.d("FloatingKeyboard", "Captured triggering key position: (" + _triggeringKeyScreenX + "," + _triggeringKeyScreenY + ")");
+      } else {
+        android.util.Log.e("FloatingKeyboard", "Cannot convert to screen coordinates - floating layout params is null");
+        _triggeringKeyScreenX = -1;
+        _triggeringKeyScreenY = -1;
+      }
+
+    } catch (Exception e) {
+      android.util.Log.e("FloatingKeyboard", "Error capturing triggering key position: " + e.getMessage());
+      _triggeringKeyScreenX = -1;
+      _triggeringKeyScreenY = -1;
     }
   }
 
