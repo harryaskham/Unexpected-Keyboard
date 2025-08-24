@@ -391,8 +391,29 @@ public class Keyboard2 extends InputMethodService
   @Override
   public void onFinishInputView(boolean finishingInput)
   {
-    super.onFinishInputView(finishingInput);
-    _keyboardView.reset();
+    if (_config.keyboard_persistence_enabled) {
+      // Don't call super.onFinishInputView when persistence is enabled
+      // This prevents the keyboard from being hidden
+      android.util.Log.d("juloo.keyboard2.fork", "Keyboard persistence enabled - preventing hide on finish input view");
+      _keyboardView.reset();
+      // Keep the keyboard visible
+      requestShowSelf(0);
+    } else {
+      super.onFinishInputView(finishingInput);
+      _keyboardView.reset();
+    }
+  }
+
+  @Override
+  public void onWindowHidden()
+  {
+    if (_config.keyboard_persistence_enabled) {
+      // Prevent the keyboard from being hidden when persistence is enabled
+      android.util.Log.d("juloo.keyboard2.fork", "Keyboard persistence enabled - preventing hide on window hidden");
+      requestShowSelf(0);
+    } else {
+      super.onWindowHidden();
+    }
   }
 
   @Override
@@ -496,6 +517,10 @@ public class Keyboard2 extends InputMethodService
           switch_to_floating_ime();
           break;
 
+        case TOGGLE_PERSISTENCE:
+          toggle_keyboard_persistence();
+          break;
+
         case FLOATING_MOVE:
         case FLOATING_RESIZE:
         case FLOATING_ENABLE_PASSTHROUGH:
@@ -591,6 +616,24 @@ public class Keyboard2 extends InputMethodService
     }
   }
 
+  private void toggle_keyboard_persistence()
+  {
+    boolean currentState = _config.keyboard_persistence_enabled;
+    boolean newState = !currentState;
+    
+    android.util.Log.d("juloo.keyboard2.fork", "Toggling keyboard persistence from " + currentState + " to " + newState);
+    
+    _config.set_keyboard_persistence_enabled(newState);
+    
+    // Show toast feedback to user
+    String message = newState ? "Keyboard persistence enabled" : "Keyboard persistence disabled";
+    android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show();
+    
+    // If persistence is now enabled and keyboard was hidden, show it
+    if (newState) {
+      requestShowSelf(0);
+    }
+  }
 
   private View inflate_view(int layout)
   {
