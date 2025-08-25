@@ -14,6 +14,7 @@ import android.inputmethodservice.InputMethodService;
 import android.net.Uri;
 import android.os.Build.VERSION;
 import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.text.InputType;
 import android.util.DisplayMetrics;
@@ -481,6 +482,24 @@ public class FloatingKeyboard2 extends InputMethodService
           }
           snapKeyboardRight();
           break;
+        case SNAP_TOP:
+          // Clear any active visual modes before snapping
+          clearAllVisualFeedback();
+          // Force immediate completion of current key event to prevent stuck keys
+          if (_floatingKeyboardView instanceof Keyboard2View) {
+            ((Keyboard2View)_floatingKeyboardView).reset();
+          }
+          snapKeyboardTop();
+          break;
+        case SNAP_BOTTOM:
+          // Clear any active visual modes before snapping
+          clearAllVisualFeedback();
+          // Force immediate completion of current key event to prevent stuck keys
+          if (_floatingKeyboardView instanceof Keyboard2View) {
+            ((Keyboard2View)_floatingKeyboardView).reset();
+          }
+          snapKeyboardBottom();
+          break;
         case FILL_WIDTH:
           // Clear any active visual modes before filling
           clearAllVisualFeedback();
@@ -893,8 +912,8 @@ public class FloatingKeyboard2 extends InputMethodService
       // Add keyboard without handle spacing
       FrameLayout.LayoutParams keyboardParams = new FrameLayout.LayoutParams(
           FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-      keyboardParams.gravity = Gravity.CENTER;
-      keyboardParams.setMargins(0, 0, 0, 12);
+      keyboardParams.gravity = Gravity.TOP | Gravity.LEFT;  // Changed from CENTER to avoid centering issues
+      keyboardParams.setMargins(0, 0, 0, 0);  // Remove bottom margin that was creating dead space
       container.addView(_floatingKeyboardView, keyboardParams);
       
       // Removed drag handle creation - functionality handled by key values
@@ -1037,6 +1056,7 @@ public class FloatingKeyboard2 extends InputMethodService
       int targetHeight = (int)(dm.heightPixels * config.floatingKeyboardHeightPercent / 100.0f);
       
       // Measure children with the target dimensions
+      int actualHeight = 0;
       for (int i = 0; i < getChildCount(); i++) {
         View child = getChildAt(i);
         if (child instanceof Keyboard2View) {
@@ -1044,6 +1064,8 @@ public class FloatingKeyboard2 extends InputMethodService
           int childWidthSpec = MeasureSpec.makeMeasureSpec(targetWidth, MeasureSpec.EXACTLY);
           int childHeightSpec = MeasureSpec.makeMeasureSpec(targetHeight, MeasureSpec.AT_MOST);
           child.measure(childWidthSpec, childHeightSpec);
+          // Get the actual measured height of the keyboard
+          actualHeight = child.getMeasuredHeight();
         } else {
           // Measure other children normally
           child.measure(
@@ -1053,7 +1075,9 @@ public class FloatingKeyboard2 extends InputMethodService
         }
       }
       
-      setMeasuredDimension(targetWidth, targetHeight);
+      // Use the actual keyboard height for the container height
+      int containerHeight = actualHeight > 0 ? actualHeight : targetHeight;
+      setMeasuredDimension(targetWidth, containerHeight);
       
       android.util.Log.d("FloatingKeyboard", "Container measured - target: " + targetWidth + "x" + targetHeight + 
                         "px (" + config.floatingKeyboardWidthPercent + "% x " + config.floatingKeyboardHeightPercent + "%)");
@@ -1144,7 +1168,22 @@ public class FloatingKeyboard2 extends InputMethodService
 
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-      super.onLayout(changed, left, top, right, bottom);
+      // Force keyboard to be at the top-left of the container with no offset
+      if (_floatingKeyboardView != null) {
+        int kbWidth = _floatingKeyboardView.getMeasuredWidth();
+        int kbHeight = _floatingKeyboardView.getMeasuredHeight();
+        _floatingKeyboardView.layout(0, 0, kbWidth, kbHeight);
+        android.util.Log.d("FloatingKeyboard", "Laid out keyboard at (0,0) with size " + kbWidth + "x" + kbHeight);
+      }
+      
+      // Layout any other children normally (though there shouldn't be any)
+      for (int i = 0; i < getChildCount(); i++) {
+        View child = getChildAt(i);
+        if (child != _floatingKeyboardView) {
+          child.layout(left, top, right, bottom);
+        }
+      }
+      
       if (changed && getWidth() > 0 && getHeight() > 0) {
         // Update touchable region after layout
         post(new Runnable() {
@@ -1266,6 +1305,19 @@ public class FloatingKeyboard2 extends InputMethodService
         float containerX = event.getX();
         float containerY = event.getY();
         
+        // First check if the touch is even within the keyboard view bounds
+        float keyboardLeft = _floatingKeyboardView.getLeft();
+        float keyboardTop = _floatingKeyboardView.getTop();
+        float keyboardRight = keyboardLeft + _floatingKeyboardView.getWidth();
+        float keyboardBottom = keyboardTop + _floatingKeyboardView.getHeight();
+        
+        // If touch is outside keyboard bounds, don't intercept it at all
+        if (containerX < keyboardLeft || containerX > keyboardRight || 
+            containerY < keyboardTop || containerY > keyboardBottom) {
+          android.util.Log.d("FloatingKeyboard", "Touch outside keyboard bounds - passing through: touch=(" + containerX + "," + containerY + ") keyboard=(" + keyboardLeft + "," + keyboardTop + "," + keyboardRight + "," + keyboardBottom + ")");
+          return false; // Don't intercept touches outside the keyboard
+        }
+        
         android.util.Log.d("FloatingKeyboard", "Container intercepting touch: x=" + containerX + " y=" + containerY + " passthrough=" + passthroughMode);
         
         // Always allow handle touches through
@@ -1338,6 +1390,24 @@ public class FloatingKeyboard2 extends InputMethodService
       if (System.currentTimeMillis() < ignoreInputUntil) {
         android.util.Log.d("FloatingKeyboard", "Ignoring touch event during cooldown period to prevent stuck keys");
         return true; // Consume the event
+      }
+      
+      // Check if touch is within keyboard bounds
+      if (_floatingKeyboardView != null) {
+        float containerX = event.getX();
+        float containerY = event.getY();
+        float keyboardLeft = _floatingKeyboardView.getLeft();
+        float keyboardTop = _floatingKeyboardView.getTop();
+        float keyboardRight = keyboardLeft + _floatingKeyboardView.getWidth();
+        float keyboardBottom = keyboardTop + _floatingKeyboardView.getHeight();
+        
+        // If touch is outside keyboard bounds and we're not dragging/resizing, don't handle it
+        if (!isDragging && !isResizing && 
+            (containerX < keyboardLeft || containerX > keyboardRight || 
+             containerY < keyboardTop || containerY > keyboardBottom)) {
+          android.util.Log.d("FloatingKeyboard", "Touch event outside keyboard bounds - not handling");
+          return false; // Don't handle touches outside the keyboard
+        }
       }
       
       // Handle key-initiated drag and resize
@@ -1918,41 +1988,47 @@ public class FloatingKeyboard2 extends InputMethodService
     Config config = Config.globalConfig();
     DisplayMetrics dm = getResources().getDisplayMetrics();
     
-    // Update keyboard configuration width to snap percentage
-    SharedPreferences.Editor editor = Config.globalPrefs().edit();
-    if (config.orientation_landscape) {
-      if (config.foldable_unfolded) {
-        editor.putInt("floating_keyboard_width_landscape_unfolded", config.snapWidthPercent);
+    // Only resize if snap resize is enabled
+    if (config.snapResizeEnabled) {
+      // Update keyboard configuration width to snap percentage
+      SharedPreferences.Editor editor = Config.globalPrefs().edit();
+      if (config.orientation_landscape) {
+        if (config.foldable_unfolded) {
+          editor.putInt("floating_keyboard_width_landscape_unfolded", config.snapWidthPercent);
+        } else {
+          editor.putInt("floating_keyboard_width_landscape", config.snapWidthPercent);
+        }
       } else {
-        editor.putInt("floating_keyboard_width_landscape", config.snapWidthPercent);
+        if (config.foldable_unfolded) {
+          editor.putInt("floating_keyboard_width_unfolded", config.snapWidthPercent);
+        } else {
+          editor.putInt("floating_keyboard_width", config.snapWidthPercent);
+        }
       }
-    } else {
-      if (config.foldable_unfolded) {
-        editor.putInt("floating_keyboard_width_unfolded", config.snapWidthPercent);
-      } else {
-        editor.putInt("floating_keyboard_width", config.snapWidthPercent);
-      }
-    }
-    editor.apply();
-    
-    // Refresh config to pick up new width values
-    config.refresh(getResources(), false);
-    
-    // Clear all states before recreating keyboard to prevent stuck keys
-    clearAllVisualFeedback();
-    if (_floatingKeyboardView instanceof Keyboard2View) {
-      ((Keyboard2View)_floatingKeyboardView).reset();
-      android.util.Log.d("FloatingKeyboard", "Pre-recreation keyboard reset for snap_left");
+      editor.apply();
     }
     
-    // Clear any pending handler operations that might cause stuck key loops during recreation
-    try {
-      if (_handler != null) {
-        _handler.removeCallbacksAndMessages(null);
-        android.util.Log.d("FloatingKeyboard", "Cleared pending handler operations before snap_left recreation");
+    // Only refresh config and recreate if resizing is enabled
+    if (config.snapResizeEnabled) {
+      // Refresh config to pick up new width values
+      config.refresh(getResources(), false);
+      
+      // Clear all states before recreating keyboard to prevent stuck keys
+      clearAllVisualFeedback();
+      if (_floatingKeyboardView instanceof Keyboard2View) {
+        ((Keyboard2View)_floatingKeyboardView).reset();
+        android.util.Log.d("FloatingKeyboard", "Pre-recreation keyboard reset for snap_left");
       }
-    } catch (Exception e) {
-      android.util.Log.w("FloatingKeyboard", "Could not clear handler operations: " + e.getMessage());
+      
+      // Clear any pending handler operations that might cause stuck key loops during recreation
+      try {
+        if (_handler != null) {
+          _handler.removeCallbacksAndMessages(null);
+          android.util.Log.d("FloatingKeyboard", "Cleared pending handler operations before snap_left recreation");
+        }
+      } catch (Exception e) {
+        android.util.Log.w("FloatingKeyboard", "Could not clear handler operations: " + e.getMessage());
+      }
     }
     
     // Add a small delay to let any pending events complete
@@ -1961,9 +2037,11 @@ public class FloatingKeyboard2 extends InputMethodService
       @Override
       public void run() {
         try {
-          // Completely recreate the floating keyboard with new dimensions
-          removeFloatingKeyboard();
-          createFloatingKeyboard();
+          if (config.snapResizeEnabled) {
+            // Completely recreate the floating keyboard with new dimensions
+            removeFloatingKeyboard();
+            createFloatingKeyboard();
+          }
           
           // Clear any visual mode feedback after recreation
           clearFloatingModeVisuals();
@@ -1980,8 +2058,11 @@ public class FloatingKeyboard2 extends InputMethodService
             ((Keyboard2View)_floatingKeyboardView).invalidate();
           }
           
-          showDebugToast("Snapped to left (" + config.snapWidthPercent + "% width)");
-          android.util.Log.d("FloatingKeyboard", "Keyboard snapped left with width=" + config.snapWidthPercent + "%");
+          String message = config.snapResizeEnabled ? 
+            "Snapped to left (" + config.snapWidthPercent + "% width)" :
+            "Snapped to left (size unchanged)";
+          showDebugToast(message);
+          android.util.Log.d("FloatingKeyboard", message);
         } catch (Exception e) {
           android.util.Log.e("FloatingKeyboard", "Error during snap_left recreation: " + e.getMessage());
         }
@@ -2001,25 +2082,28 @@ public class FloatingKeyboard2 extends InputMethodService
     Config config = Config.globalConfig();
     DisplayMetrics dm = getResources().getDisplayMetrics();
     
-    // Update keyboard configuration width to snap percentage
-    SharedPreferences.Editor editor = Config.globalPrefs().edit();
-    if (config.orientation_landscape) {
-      if (config.foldable_unfolded) {
-        editor.putInt("floating_keyboard_width_landscape_unfolded", config.snapWidthPercent);
+    // Only resize if snap resize is enabled
+    if (config.snapResizeEnabled) {
+      // Update keyboard configuration width to snap percentage
+      SharedPreferences.Editor editor = Config.globalPrefs().edit();
+      if (config.orientation_landscape) {
+        if (config.foldable_unfolded) {
+          editor.putInt("floating_keyboard_width_landscape_unfolded", config.snapWidthPercent);
+        } else {
+          editor.putInt("floating_keyboard_width_landscape", config.snapWidthPercent);
+        }
       } else {
-        editor.putInt("floating_keyboard_width_landscape", config.snapWidthPercent);
+        if (config.foldable_unfolded) {
+          editor.putInt("floating_keyboard_width_unfolded", config.snapWidthPercent);
+        } else {
+          editor.putInt("floating_keyboard_width", config.snapWidthPercent);
+        }
       }
-    } else {
-      if (config.foldable_unfolded) {
-        editor.putInt("floating_keyboard_width_unfolded", config.snapWidthPercent);
-      } else {
-        editor.putInt("floating_keyboard_width", config.snapWidthPercent);
-      }
+      editor.apply();
+      
+      // Refresh config to pick up new width values
+      config.refresh(getResources(), false);
     }
-    editor.apply();
-    
-    // Refresh config to pick up new width values
-    config.refresh(getResources(), false);
     
     // Clear all states before recreating keyboard to prevent stuck keys
     clearAllVisualFeedback();
@@ -2044,16 +2128,20 @@ public class FloatingKeyboard2 extends InputMethodService
       @Override
       public void run() {
         try {
-          // Completely recreate the floating keyboard with new dimensions
-          removeFloatingKeyboard();
-          createFloatingKeyboard();
+          if (config.snapResizeEnabled) {
+            // Completely recreate the floating keyboard with new dimensions
+            removeFloatingKeyboard();
+            createFloatingKeyboard();
+          }
           
           // Clear any visual mode feedback after recreation
           clearFloatingModeVisuals();
           
           // Position at right edge
           if (_floatingLayoutParams != null) {
-            int snapWidth = (int)(dm.widthPixels * config.snapWidthPercent / 100.0f);
+            int snapWidth = config.snapResizeEnabled ? 
+              (int)(dm.widthPixels * config.snapWidthPercent / 100.0f) :
+              _floatingLayoutParams.width;
             int rightPosition = dm.widthPixels - snapWidth;
             _floatingLayoutParams.x = rightPosition;
             _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
@@ -2065,13 +2153,151 @@ public class FloatingKeyboard2 extends InputMethodService
             ((Keyboard2View)_floatingKeyboardView).invalidate();
           }
           
-          showDebugToast("Snapped to right (" + config.snapWidthPercent + "% width)");
-          android.util.Log.d("FloatingKeyboard", "Keyboard snapped right with width=" + config.snapWidthPercent + "%");
+          String message = config.snapResizeEnabled ? 
+            "Snapped to right (" + config.snapWidthPercent + "% width)" :
+            "Snapped to right (size unchanged)";
+          showDebugToast(message);
+          android.util.Log.d("FloatingKeyboard", message);
         } catch (Exception e) {
           android.util.Log.e("FloatingKeyboard", "Error during snap_right recreation: " + e.getMessage());
         }
       }
     }, 100); // 100ms delay to let events complete
+  }
+
+  private void snapKeyboardTop()
+  {
+    android.util.Log.d("FloatingKeyboard", "Snapping keyboard to top");
+    
+    if (!_floatingKeyboardActive || _floatingLayoutParams == null) {
+      android.util.Log.d("FloatingKeyboard", "Cannot snap top - floating keyboard not active");
+      return;
+    }
+    
+    Config config = Config.globalConfig();
+    
+    // Only resize if snap resize is enabled
+    if (config.snapResizeEnabled) {
+      // Update keyboard configuration height to snap percentage
+      SharedPreferences.Editor editor = Config.globalPrefs().edit();
+      if (config.orientation_landscape) {
+        if (config.foldable_unfolded) {
+          editor.putInt("floating_keyboard_height_landscape_unfolded", config.snapHeightPercent);
+        } else {
+          editor.putInt("floating_keyboard_height_landscape", config.snapHeightPercent);
+        }
+      } else {
+        if (config.foldable_unfolded) {
+          editor.putInt("floating_keyboard_height_unfolded", config.snapHeightPercent);
+        } else {
+          editor.putInt("floating_keyboard_height", config.snapHeightPercent);
+        }
+      }
+      editor.apply();
+    }
+    
+    // Apply changes with a small delay to ensure proper recreation
+    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          if (config.snapResizeEnabled) {
+            // Recreate keyboard with new dimensions
+            removeFloatingKeyboard();
+            createFloatingKeyboard();
+          }
+          
+          // Position at top
+          if (_floatingLayoutParams != null) {
+            _floatingLayoutParams.y = 0;
+            _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+          }
+          
+          // Refresh the keyboard view
+          if (_floatingKeyboardView != null) {
+            ((Keyboard2View)_floatingKeyboardView).invalidate();
+          }
+          
+          String message = config.snapResizeEnabled ? 
+            "Snapped to top (" + config.snapHeightPercent + "% height)" :
+            "Snapped to top (size unchanged)";
+          showDebugToast(message);
+          android.util.Log.d("FloatingKeyboard", message);
+        } catch (Exception e) {
+          android.util.Log.e("FloatingKeyboard", "Error during snap_top: " + e.getMessage());
+        }
+      }
+    }, 100);
+  }
+
+  private void snapKeyboardBottom()
+  {
+    android.util.Log.d("FloatingKeyboard", "Snapping keyboard to bottom");
+    
+    if (!_floatingKeyboardActive || _floatingLayoutParams == null) {
+      android.util.Log.d("FloatingKeyboard", "Cannot snap bottom - floating keyboard not active");
+      return;
+    }
+    
+    Config config = Config.globalConfig();
+    
+    // Only resize if snap resize is enabled
+    if (config.snapResizeEnabled) {
+      // Update keyboard configuration height to snap percentage
+      SharedPreferences.Editor editor = Config.globalPrefs().edit();
+      if (config.orientation_landscape) {
+        if (config.foldable_unfolded) {
+          editor.putInt("floating_keyboard_height_landscape_unfolded", config.snapHeightPercent);
+        } else {
+          editor.putInt("floating_keyboard_height_landscape", config.snapHeightPercent);
+        }
+      } else {
+        if (config.foldable_unfolded) {
+          editor.putInt("floating_keyboard_height_unfolded", config.snapHeightPercent);
+        } else {
+          editor.putInt("floating_keyboard_height", config.snapHeightPercent);
+        }
+      }
+      editor.apply();
+    }
+    
+    // Apply changes with a small delay to ensure proper recreation
+    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          if (config.snapResizeEnabled) {
+            // Recreate keyboard with new dimensions
+            removeFloatingKeyboard();
+            createFloatingKeyboard();
+          }
+          
+          // Position at bottom
+          if (_floatingLayoutParams != null) {
+            DisplayMetrics dm = getResources().getDisplayMetrics();
+            int snapHeight = config.snapResizeEnabled ? 
+              (int)(dm.heightPixels * config.snapHeightPercent / 100.0f) :
+              _floatingLayoutParams.height;
+            int bottomPosition = dm.heightPixels - snapHeight;
+            _floatingLayoutParams.y = bottomPosition;
+            _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+          }
+          
+          // Refresh the keyboard view
+          if (_floatingKeyboardView != null) {
+            ((Keyboard2View)_floatingKeyboardView).invalidate();
+          }
+          
+          String message = config.snapResizeEnabled ? 
+            "Snapped to bottom (" + config.snapHeightPercent + "% height)" :
+            "Snapped to bottom (size unchanged)";
+          showDebugToast(message);
+          android.util.Log.d("FloatingKeyboard", message);
+        } catch (Exception e) {
+          android.util.Log.e("FloatingKeyboard", "Error during snap_bottom: " + e.getMessage());
+        }
+      }
+    }, 100);
   }
 
   private void fillKeyboardWidth()
@@ -2253,8 +2479,11 @@ public class FloatingKeyboard2 extends InputMethodService
     }
     
     DisplayMetrics dm = getResources().getDisplayMetrics();
-    int centerX = (dm.widthPixels - _floatingLayoutParams.width) / 2;
+    // Get the actual container width instead of layout params width
+    int keyboardWidth = _floatingContainer != null ? _floatingContainer.getWidth() : _floatingLayoutParams.width;
+    int centerX = (dm.widthPixels - keyboardWidth) / 2;
     
+    android.util.Log.d("FloatingKeyboard", "Centering horizontally: screen=" + dm.widthPixels + "px, keyboard=" + keyboardWidth + "px, centerX=" + centerX + "px");
     _floatingLayoutParams.x = centerX;
     _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
     
@@ -2272,8 +2501,11 @@ public class FloatingKeyboard2 extends InputMethodService
     }
     
     DisplayMetrics dm = getResources().getDisplayMetrics();
-    int centerY = (dm.heightPixels - _floatingLayoutParams.height) / 2;
+    // Get the actual container height instead of layout params height
+    int keyboardHeight = _floatingContainer != null ? _floatingContainer.getHeight() : _floatingLayoutParams.height;
+    int centerY = (dm.heightPixels - keyboardHeight) / 2;
     
+    android.util.Log.d("FloatingKeyboard", "Centering vertically: screen=" + dm.heightPixels + "px, keyboard=" + keyboardHeight + "px, centerY=" + centerY + "px");
     _floatingLayoutParams.y = centerY;
     _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
     
@@ -2291,9 +2523,13 @@ public class FloatingKeyboard2 extends InputMethodService
     }
     
     DisplayMetrics dm = getResources().getDisplayMetrics();
-    int centerX = (dm.widthPixels - _floatingLayoutParams.width) / 2;
-    int centerY = (dm.heightPixels - _floatingLayoutParams.height) / 2;
+    // Get the actual container dimensions instead of layout params dimensions
+    int keyboardWidth = _floatingContainer != null ? _floatingContainer.getWidth() : _floatingLayoutParams.width;
+    int keyboardHeight = _floatingContainer != null ? _floatingContainer.getHeight() : _floatingLayoutParams.height;
+    int centerX = (dm.widthPixels - keyboardWidth) / 2;
+    int centerY = (dm.heightPixels - keyboardHeight) / 2;
     
+    android.util.Log.d("FloatingKeyboard", "Centering both: screen=" + dm.widthPixels + "x" + dm.heightPixels + "px, keyboard=" + keyboardWidth + "x" + keyboardHeight + "px, center=(" + centerX + "," + centerY + ")");
     _floatingLayoutParams.x = centerX;
     _floatingLayoutParams.y = centerY;
     _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);

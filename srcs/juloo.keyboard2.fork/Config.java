@@ -81,6 +81,8 @@ public final class Config
   public String selected_font;
   public int keyboardDisabledOpacity; // 0 - 100 (percentage)
   public int snapWidthPercent; // Percentage of screen width for snap operations
+  public int snapHeightPercent; // Percentage of screen height for snap operations
+  public boolean snapResizeEnabled; // Whether to resize when snapping
   public boolean isFloatingDocked; // Current docked state
   public boolean rememberFloatingReEnableButtonPosition; // Whether to remember re-enable button position
   public String floatingPassthroughKeyboardXml; // XML definition for passthrough keyboard
@@ -214,6 +216,8 @@ public final class Config
     selected_font = _prefs.getString("font", "default");
     keyboardDisabledOpacity = _prefs.getInt("keyboard_disabled_opacity", 30);
     snapWidthPercent = _prefs.getInt("snap_width_percent", 50);
+    snapHeightPercent = _prefs.getInt("snap_height_percent", 40);
+    snapResizeEnabled = _prefs.getBoolean("snap_resize_enabled", true);
     isFloatingDocked = _prefs.getBoolean("is_floating_docked", false);
     rememberFloatingReEnableButtonPosition = _prefs.getBoolean("remember_floating_reenable_button_position", true);
     floatingPassthroughKeyboardXml = _prefs.getString("floating_passthrough_keyboard_xml", 

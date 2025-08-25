@@ -37,6 +37,8 @@ public final class KeyValue implements Comparable<KeyValue>
     CENTER_HORIZONTAL,
     CENTER_VERTICAL,
     CENTER_BOTH,
+    SNAP_TOP,
+    SNAP_BOTTOM,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -698,6 +700,8 @@ public final class KeyValue implements Comparable<KeyValue>
       case "floating_disable_passthrough": return eventKey("Enable", Event.FLOATING_DISABLE_PASSTHROUGH, FLAG_SMALLER_FONT);
       case "snap_left": return eventKey("SnapL", Event.SNAP_LEFT, FLAG_SMALLER_FONT);
       case "snap_right": return eventKey("SnapR", Event.SNAP_RIGHT, FLAG_SMALLER_FONT);
+      case "snap_top": return eventKey("SnapT", Event.SNAP_TOP, FLAG_SMALLER_FONT);
+      case "snap_bottom": return eventKey("SnapB", Event.SNAP_BOTTOM, FLAG_SMALLER_FONT);
       case "fill_width": return eventKey("Fill", Event.FILL_WIDTH, FLAG_SMALLER_FONT);
       case "toggle_floating_docked": return eventKey("Dock", Event.TOGGLE_FLOATING_DOCKED, FLAG_SMALLER_FONT);
       case "center_horizontal": return eventKey("CenterH", Event.CENTER_HORIZONTAL, FLAG_SMALLER_FONT);

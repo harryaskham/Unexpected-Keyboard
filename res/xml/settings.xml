@@ -80,6 +80,8 @@
     <juloo.keyboard2.fork.prefs.SlideBarPreference android:key="key_horizontal_margin_px" android:title="@string/pref_key_horizontal_space_px" android:summary="%.1fpx" android:defaultValue="3.0" min="0.0" max="20.0" step="0.1" android:dependency="use_pixel_margins"/>
     <PreferenceScreen android:title="Floating Keyboard Window Management">
       <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="snap_width_percent" android:title="Snap Width" android:summary="%s%% of screen width" android:defaultValue="50" min="25" max="100" step="5"/>
+      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="snap_height_percent" android:title="Snap Height" android:summary="%s%% of screen height" android:defaultValue="40" min="15" max="80" step="5"/>
+      <CheckBoxPreference android:key="snap_resize_enabled" android:title="Resize When Snapping" android:summary="Resize keyboard to snap dimensions, uncheck to keep current size" android:defaultValue="true"/>
       <CheckBoxPreference android:key="remember_floating_reenable_button_position" android:title="Remember Re-enable Button Position" android:summary="Remember the position of the floating re-enable button between sessions" android:defaultValue="true"/>
     </PreferenceScreen>
     <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="keyboard_disabled_opacity" android:title="@string/pref_keyboard_disabled_opacity" android:summary="%s%%" android:defaultValue="30" min="0" max="100" step="1"/>
