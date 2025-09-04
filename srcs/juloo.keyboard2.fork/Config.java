@@ -143,6 +143,7 @@ public final class Config
       keyboardWidthPercent = _prefs.getInt(foldable_unfolded ? "keyboard_width_landscape_unfolded" : "keyboard_width_landscape", 100);
       floatingKeyboardHeightPercent = _prefs.getInt(foldable_unfolded ? "floating_keyboard_height_landscape_unfolded" : "floating_keyboard_height_landscape", 35);
       floatingKeyboardWidthPercent = _prefs.getInt(foldable_unfolded ? "floating_keyboard_width_landscape_unfolded" : "floating_keyboard_width_landscape", 100);
+      android.util.Log.d("Config", "Loaded landscape floating dimensions: " + floatingKeyboardWidthPercent + "% x " + floatingKeyboardHeightPercent + "%");
       characterSizeScale = 1.25f;
     }
     else
@@ -151,6 +152,7 @@ public final class Config
       keyboardWidthPercent = _prefs.getInt(foldable_unfolded ? "keyboard_width_unfolded" : "keyboard_width", 100);
       floatingKeyboardHeightPercent = _prefs.getInt(foldable_unfolded ? "floating_keyboard_height_unfolded" : "floating_keyboard_height", 25);
       floatingKeyboardWidthPercent = _prefs.getInt(foldable_unfolded ? "floating_keyboard_width_unfolded" : "floating_keyboard_width", 100);
+      android.util.Log.d("Config", "Loaded portrait floating dimensions: " + floatingKeyboardWidthPercent + "% x " + floatingKeyboardHeightPercent + "%");
     }
     layouts = LayoutsPreference.load_from_preferences(res, _prefs);
     inverse_numpad = _prefs.getString("numpad_layout", "default").equals("low_first");

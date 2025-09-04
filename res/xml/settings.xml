@@ -48,15 +48,9 @@
       <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="keyboard_height_unfolded" android:title="@string/pref_portrait_unfolded" android:summary="%s%%" android:defaultValue="35" min="10" max="50"/>
       <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="keyboard_height_landscape_unfolded" android:title="@string/pref_landscape_unfolded" android:summary="%s%%" android:defaultValue="50" min="20" max="65"/>
     </PreferenceScreen>
-    <PreferenceScreen android:title="Floating Keyboard Dimensions">
-      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_height" android:title="Height (Portrait)" android:summary="%s%%" android:defaultValue="25" min="10" max="50"/>
-      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_height_landscape" android:title="Height (Landscape)" android:summary="%s%%" android:defaultValue="35" min="15" max="50"/>
-      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_height_unfolded" android:title="Height (Portrait Unfolded)" android:summary="%s%%" android:defaultValue="25" min="10" max="40"/>
-      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_height_landscape_unfolded" android:title="Height (Landscape Unfolded)" android:summary="%s%%" android:defaultValue="35" min="15" max="50"/>
-      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_width" android:title="Width (Portrait)" android:summary="%s%%" android:defaultValue="100" min="50" max="100"/>
-      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_width_landscape" android:title="Width (Landscape)" android:summary="%s%%" android:defaultValue="100" min="50" max="100"/>
-      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_width_unfolded" android:title="Width (Portrait Unfolded)" android:summary="%s%%" android:defaultValue="100" min="50" max="100"/>
-      <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_width_landscape_unfolded" android:title="Width (Landscape Unfolded)" android:summary="%s%%" android:defaultValue="100" min="50" max="100"/>
+    <PreferenceScreen android:title="Floating Keyboard Current State (Read-only)">
+      <juloo.keyboard2.fork.prefs.StatusPreference android:key="floating_keyboard_current_dimensions" android:title="Current Dimensions" android:summary="Resize using keyboard drag"/>
+      <juloo.keyboard2.fork.prefs.StatusPreference android:key="floating_keyboard_current_position" android:title="Current Position" android:summary="Move using keyboard drag"/>
     </PreferenceScreen>
     <PreferenceScreen android:title="@string/pref_margin_top_title">
       <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="margin_top_portrait" android:title="@string/pref_portrait" android:summary="%sdp" android:defaultValue="3" min="0" max="50"/>
@@ -83,6 +77,12 @@
       <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="snap_height_percent" android:title="Snap Height" android:summary="%s%% of screen height" android:defaultValue="40" min="15" max="80" step="5"/>
       <CheckBoxPreference android:key="snap_resize_enabled" android:title="Resize When Snapping" android:summary="Resize keyboard to snap dimensions, uncheck to keep current size" android:defaultValue="true"/>
       <CheckBoxPreference android:key="remember_floating_reenable_button_position" android:title="Remember Re-enable Button Position" android:summary="Remember the position of the floating re-enable button between sessions" android:defaultValue="true"/>
+      <PreferenceScreen android:title="Floating Keyboard Position (Advanced)">
+        <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_x_portrait" android:title="X Position (Portrait)" android:summary="%spx from left" android:defaultValue="100" min="0" max="1500" step="10"/>
+        <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_y_portrait" android:title="Y Position (Portrait)" android:summary="%spx from top" android:defaultValue="300" min="0" max="3000" step="10"/>
+        <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_x_landscape" android:title="X Position (Landscape)" android:summary="%spx from left" android:defaultValue="100" min="0" max="3000" step="10"/>
+        <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="floating_keyboard_y_landscape" android:title="Y Position (Landscape)" android:summary="%spx from top" android:defaultValue="300" min="0" max="1500" step="10"/>
+      </PreferenceScreen>
     </PreferenceScreen>
     <juloo.keyboard2.fork.prefs.IntSlideBarPreference android:key="keyboard_disabled_opacity" android:title="@string/pref_keyboard_disabled_opacity" android:summary="%s%%" android:defaultValue="30" min="0" max="100" step="1"/>
     <CheckBoxPreference android:key="border_config" android:title="@string/pref_border_config_title" android:defaultValue="false"/>

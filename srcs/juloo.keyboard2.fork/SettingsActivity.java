@@ -6,6 +6,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceManager;
+import juloo.keyboard2.fork.prefs.StatusPreference;
 
 public class SettingsActivity extends PreferenceActivity
 {
@@ -31,6 +32,12 @@ public class SettingsActivity extends PreferenceActivity
     findPreference("horizontal_margin_landscape_unfolded").setEnabled(foldableDevice);
     findPreference("keyboard_height_unfolded").setEnabled(foldableDevice);
     findPreference("keyboard_height_landscape_unfolded").setEnabled(foldableDevice);
+    
+    // Update status preferences to show current values
+    StatusPreference dimensionsStatus = (StatusPreference)findPreference("floating_keyboard_current_dimensions");
+    StatusPreference positionStatus = (StatusPreference)findPreference("floating_keyboard_current_position");
+    if (dimensionsStatus != null) dimensionsStatus.updateSummary();
+    if (positionStatus != null) positionStatus.updateSummary();
   }
 
   void fallbackEncrypted()

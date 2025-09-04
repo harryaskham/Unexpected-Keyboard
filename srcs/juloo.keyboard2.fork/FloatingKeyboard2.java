@@ -275,8 +275,10 @@ public class FloatingKeyboard2 extends InputMethodService
     _currentSpecialLayout = refresh_special_layout(info);
     _keyeventhandler.started(info);
     
-    // Always create floating keyboard for floating IME
-    createFloatingKeyboard();
+    // Only create floating keyboard if it doesn't exist
+    if (!_floatingKeyboardActive) {
+      createFloatingKeyboard();
+    }
     
     if (_floatingKeyboardActive && _floatingKeyboardView != null) {
       ((Keyboard2View)_floatingKeyboardView).setKeyboard(current_layout());
@@ -292,6 +294,28 @@ public class FloatingKeyboard2 extends InputMethodService
         }
       });
       android.util.Log.d("FloatingKeyboard", "Cleared keyboard state on startup to prevent stuck keys");
+    }
+  }
+
+  @Override
+  public void onConfigurationChanged(android.content.res.Configuration newConfig)
+  {
+    super.onConfigurationChanged(newConfig);
+    
+    android.util.Log.d("FloatingKeyboard", "Configuration changed - recreating floating keyboard");
+    
+    if (_floatingKeyboardActive) {
+      // Don't save position here - the orientation has already changed
+      // and we'd save to the wrong orientation keys
+      
+      // Recreate keyboard with new orientation settings
+      removeFloatingKeyboard();
+      
+      // Refresh config with new orientation
+      _config.refresh(getResources(), _foldStateTracker != null ? _foldStateTracker.isUnfolded() : false);
+      
+      // Recreate keyboard which will load position for new orientation
+      createFloatingKeyboard();
     }
   }
 
@@ -372,6 +396,10 @@ public class FloatingKeyboard2 extends InputMethodService
     refresh_config();
     if (_floatingKeyboardActive && _floatingKeyboardView != null) {
       ((Keyboard2View)_floatingKeyboardView).setKeyboard(current_layout());
+      // Force container to remeasure with new config dimensions
+      if (_floatingContainer != null) {
+        _floatingContainer.requestLayout();
+      }
     }
   }
 
@@ -752,38 +780,121 @@ public class FloatingKeyboard2 extends InputMethodService
     if (_floatingLayoutParams != null) {
       SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(this);
       SharedPreferences.Editor editor = prefs.edit();
-      editor.putInt("floating_keyboard_x", _floatingLayoutParams.x);
-      editor.putInt("floating_keyboard_y", _floatingLayoutParams.y);
+      
+      // Get current orientation directly from system resources to ensure accuracy
+      boolean currentLandscape = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+      boolean currentUnfolded = _foldStateTracker != null ? _foldStateTracker.isUnfolded() : false;
+      
+      // Position settings don't have unfolded variants, use basic orientation
+      String suffix = currentLandscape ? "_landscape" : "_portrait";
+      
+      String xKey = "floating_keyboard_x" + suffix;
+      String yKey = "floating_keyboard_y" + suffix;
+      
+      editor.putInt(xKey, _floatingLayoutParams.x);
+      editor.putInt(yKey, _floatingLayoutParams.y);
       editor.apply();
       
+      android.util.Log.d("FloatingKeyboard", "Position saved (" + suffix + "): " + _floatingLayoutParams.x + "," + _floatingLayoutParams.y + " to keys " + xKey + "," + yKey + " (current orientation: landscape=" + currentLandscape + ", unfolded=" + currentUnfolded + ")");
+      
       if (isDebugModeEnabled()) {
-        showDebugToast("Position saved: " + _floatingLayoutParams.x + "," + _floatingLayoutParams.y);
+        showDebugToast("Position saved (" + suffix + "): " + _floatingLayoutParams.x + "," + _floatingLayoutParams.y);
       }
     }
   }
   
-  private void saveFloatingKeyboardDimensions(int widthPercent, int heightPercent) {
+  private int[] loadFloatingKeyboardDimensions() {
+    SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(this);
+    DisplayMetrics dm = getResources().getDisplayMetrics();
+    
+    // Get current orientation
+    boolean currentLandscape = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+    boolean currentUnfolded = _foldStateTracker != null ? _foldStateTracker.isUnfolded() : false;
+    
+    String suffix;
+    if (currentUnfolded) {
+      suffix = currentLandscape ? "_landscape_unfolded" : "_portrait_unfolded";
+    } else {
+      suffix = currentLandscape ? "_landscape" : "_portrait";
+    }
+    
+    String widthKey = "floating_keyboard_width_px" + suffix;
+    String heightKey = "floating_keyboard_height_px" + suffix;
+    
+    // Try to load pixel dimensions first
+    int widthPx = prefs.getInt(widthKey, -1);
+    int heightPx = prefs.getInt(heightKey, -1);
+    
+    // If no pixel dimensions saved, calculate from percentages (for fresh install or upgrade)
+    if (widthPx == -1 || heightPx == -1) {
+      // Use the percentage values from config which loads from preferences with defaults
+      widthPx = (int)(dm.widthPixels * _config.floatingKeyboardWidthPercent / 100.0f);
+      heightPx = (int)(dm.heightPixels * _config.floatingKeyboardHeightPercent / 100.0f);
+      
+      android.util.Log.d("FloatingKeyboard", "No saved pixel dimensions, calculated from percentages: " + 
+                        widthPx + "x" + heightPx + "px (" + _config.floatingKeyboardWidthPercent + "% x " + 
+                        _config.floatingKeyboardHeightPercent + "%)");
+      
+      // Save these calculated pixel dimensions for next time
+      SharedPreferences.Editor editor = prefs.edit();
+      editor.putInt(widthKey, widthPx);
+      editor.putInt(heightKey, heightPx);
+      editor.apply();
+    } else {
+      android.util.Log.d("FloatingKeyboard", "Loaded saved pixel dimensions: " + widthPx + "x" + heightPx + "px");
+      
+      // Update config percentages to match loaded pixel dimensions
+      _config.floatingKeyboardWidthPercent = Math.round(widthPx * 100f / dm.widthPixels);
+      _config.floatingKeyboardHeightPercent = Math.round(heightPx * 100f / dm.heightPixels);
+    }
+    
+    return new int[] { widthPx, heightPx };
+  }
+
+  private void saveFloatingKeyboardDimensions(int widthPx, int heightPx) {
     SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(this);
     SharedPreferences.Editor editor = prefs.edit();
     
-    // Save based on orientation and foldable state (match Config.java logic)
-    boolean isLandscape = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
-    boolean isUnfolded = _foldStateTracker.isUnfolded();
+    // Get current orientation directly from system resources to ensure accuracy
+    boolean currentLandscape = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+    boolean currentUnfolded = _foldStateTracker != null ? _foldStateTracker.isUnfolded() : false;
     
-    String widthKey, heightKey;
-    if (isLandscape) {
-      widthKey = isUnfolded ? "floating_keyboard_width_landscape_unfolded" : "floating_keyboard_width_landscape";
-      heightKey = isUnfolded ? "floating_keyboard_height_landscape_unfolded" : "floating_keyboard_height_landscape";
+    String suffix;
+    if (currentUnfolded) {
+      suffix = currentLandscape ? "_landscape_unfolded" : "_portrait_unfolded";
     } else {
-      widthKey = isUnfolded ? "floating_keyboard_width_unfolded" : "floating_keyboard_width";
-      heightKey = isUnfolded ? "floating_keyboard_height_unfolded" : "floating_keyboard_height";
+      suffix = currentLandscape ? "_landscape" : "_portrait";
     }
     
-    editor.putInt(widthKey, widthPercent);
-    editor.putInt(heightKey, heightPercent);
+    String widthKey = "floating_keyboard_width_px" + suffix;
+    String heightKey = "floating_keyboard_height_px" + suffix;
+    
+    editor.putInt(widthKey, widthPx);
+    editor.putInt(heightKey, heightPx);
+    
+    // Also update the percentage values for backward compatibility
+    DisplayMetrics dm = getResources().getDisplayMetrics();
+    int widthPercent = Math.round(widthPx * 100f / dm.widthPixels);
+    int heightPercent = Math.round(heightPx * 100f / dm.heightPixels);
+    
+    String widthPercentKey, heightPercentKey;
+    if (currentLandscape) {
+      widthPercentKey = currentUnfolded ? "floating_keyboard_width_landscape_unfolded" : "floating_keyboard_width_landscape";
+      heightPercentKey = currentUnfolded ? "floating_keyboard_height_landscape_unfolded" : "floating_keyboard_height_landscape";
+    } else {
+      widthPercentKey = currentUnfolded ? "floating_keyboard_width_unfolded" : "floating_keyboard_width";
+      heightPercentKey = currentUnfolded ? "floating_keyboard_height_unfolded" : "floating_keyboard_height";
+    }
+    
+    editor.putInt(widthPercentKey, widthPercent);
+    editor.putInt(heightPercentKey, heightPercent);
     editor.apply();
     
-    android.util.Log.d("FloatingKeyboard", "Saved dimensions: " + widthPercent + "% x " + heightPercent + "% (keys: " + widthKey + ", " + heightKey + ")");
+    // Update config with new percentages
+    _config.floatingKeyboardWidthPercent = widthPercent;
+    _config.floatingKeyboardHeightPercent = heightPercent;
+    
+    android.util.Log.d("FloatingKeyboard", "Saved dimensions: " + widthPx + "x" + heightPx + "px (" + widthPercent + "% x " + heightPercent + "%) to keys " + widthKey + ", " + heightKey);
   }
 
   private void clampKeyboardPositionToScreen() {
@@ -940,10 +1051,24 @@ public class FloatingKeyboard2 extends InputMethodService
       
       params.gravity = Gravity.TOP | Gravity.LEFT;
       
-      // Restore saved position or use defaults
+      // Restore saved position based on orientation or use defaults
       SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(this);
-      params.x = prefs.getInt("floating_keyboard_x", 100);
-      params.y = prefs.getInt("floating_keyboard_y", 300);
+      
+      // Get current orientation directly from system resources to ensure accuracy
+      boolean currentLandscape = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+      boolean currentUnfolded = _foldStateTracker != null ? _foldStateTracker.isUnfolded() : false;
+      
+      // Position settings don't have unfolded variants, use basic orientation
+      String suffix = currentLandscape ? "_landscape" : "_portrait";
+      
+      String xKey = "floating_keyboard_x" + suffix;
+      String yKey = "floating_keyboard_y" + suffix;
+      
+      params.x = prefs.getInt(xKey, 100);
+      params.y = prefs.getInt(yKey, 300);
+      
+      android.util.Log.d("FloatingKeyboard", "Position loaded (" + suffix + "): " + params.x + "," + params.y + " from keys " + xKey + "," + yKey + " (current orientation: landscape=" + currentLandscape + ", unfolded=" + currentUnfolded + ")");
+      android.util.Log.d("FloatingKeyboard", "Config dimensions: " + _config.floatingKeyboardWidthPercent + "% x " + _config.floatingKeyboardHeightPercent + "%");
       
       // Prevent spurious touch events during keyboard creation
       container.ignoreInputUntil = System.currentTimeMillis() + INPUT_IGNORE_DELAY_MS;
@@ -1049,11 +1174,12 @@ public class FloatingKeyboard2 extends InputMethodService
     
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-      // Get the current floating keyboard dimensions from config
+      // Load the saved pixel dimensions (with fallback to percentage-based defaults)
+      int[] dimensions = FloatingKeyboard2.this.loadFloatingKeyboardDimensions();
+      int targetWidth = dimensions[0];
+      int targetHeight = dimensions[1];
+      
       Config config = Config.globalConfig();
-      DisplayMetrics dm = getResources().getDisplayMetrics();
-      int targetWidth = (int)(dm.widthPixels * config.floatingKeyboardWidthPercent / 100.0f);
-      int targetHeight = (int)(dm.heightPixels * config.floatingKeyboardHeightPercent / 100.0f);
       
       // Measure children with the target dimensions
       int actualHeight = 0;
@@ -1132,13 +1258,13 @@ public class FloatingKeyboard2 extends InputMethodService
       }
       
       // Calculate initial dimensions from config percentages
-      DisplayMetrics dm = getResources().getDisplayMetrics();
-      int scrWidth = dm.widthPixels;
-      int scrHeight = dm.heightPixels;
-      Config config = Config.globalConfig();
+      // Load current dimensions in pixels
+      int[] dimensions = FloatingKeyboard2.this.loadFloatingKeyboardDimensions();
+      initialWidth = dimensions[0];
+      initialHeight = dimensions[1];
       
-      initialWidth = Math.round(scrWidth * config.floatingKeyboardWidthPercent / 100f);
-      initialHeight = Math.round(scrHeight * config.floatingKeyboardHeightPercent / 100f);
+      DisplayMetrics dm = getResources().getDisplayMetrics();
+      Config config = Config.globalConfig();
       initialWidthPercent = config.floatingKeyboardWidthPercent;
       initialHeightPercent = config.floatingKeyboardHeightPercent;
       initialWindowX = _floatingLayoutParams.x;
@@ -1494,7 +1620,7 @@ public class FloatingKeyboard2 extends InputMethodService
             config.floatingKeyboardHeightPercent = newHeightPercent;
             
             // CRITICAL: Also persist to SharedPreferences to prevent reset on config refresh
-            FloatingKeyboard2.this.saveFloatingKeyboardDimensions(newWidthPercent, newHeightPercent);
+            FloatingKeyboard2.this.saveFloatingKeyboardDimensions(newKeyboardWidth, newKeyboardHeight);
             
             // Update the window layout parameters to actually resize the window
             if (_floatingLayoutParams != null && FloatingKeyboard2.this._windowManager != null) {
@@ -2040,6 +2166,7 @@ public class FloatingKeyboard2 extends InputMethodService
     // Position at left edge
     _floatingLayoutParams.x = 0;
     _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+    saveFloatingKeyboardPosition();
     
     String message = config.snapResizeEnabled ? 
       "Snapped to left (" + config.snapWidthPercent + "% x " + config.snapHeightPercent + "%)" :
@@ -2070,6 +2197,7 @@ public class FloatingKeyboard2 extends InputMethodService
     int rightPosition = dm.widthPixels - keyboardWidth;
     _floatingLayoutParams.x = rightPosition;
     _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+    saveFloatingKeyboardPosition();
     
     String message = config.snapResizeEnabled ? 
       "Snapped to right (" + config.snapWidthPercent + "% x " + config.snapHeightPercent + "%)" :
@@ -2097,6 +2225,7 @@ public class FloatingKeyboard2 extends InputMethodService
     // Position at top edge
     _floatingLayoutParams.y = 0;
     _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+    saveFloatingKeyboardPosition();
     
     String message = config.snapResizeEnabled ? 
       "Snapped to top (" + config.snapWidthPercent + "% x " + config.snapHeightPercent + "%)" :
@@ -2127,6 +2256,7 @@ public class FloatingKeyboard2 extends InputMethodService
     int bottomPosition = dm.heightPixels - keyboardHeight;
     _floatingLayoutParams.y = bottomPosition;
     _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+    saveFloatingKeyboardPosition();
     
     String message = config.snapResizeEnabled ? 
       "Snapped to bottom (" + config.snapWidthPercent + "% x " + config.snapHeightPercent + "%)" :
@@ -2321,6 +2451,7 @@ public class FloatingKeyboard2 extends InputMethodService
     android.util.Log.d("FloatingKeyboard", "Centering horizontally: screen=" + dm.widthPixels + "px, keyboard=" + keyboardWidth + "px, centerX=" + centerX + "px");
     _floatingLayoutParams.x = centerX;
     _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+    saveFloatingKeyboardPosition();
     
     showDebugToast("Keyboard centered horizontally");
     android.util.Log.d("FloatingKeyboard", "Keyboard centered horizontally at x=" + centerX);
@@ -2343,6 +2474,7 @@ public class FloatingKeyboard2 extends InputMethodService
     android.util.Log.d("FloatingKeyboard", "Centering vertically: screen=" + dm.heightPixels + "px, keyboard=" + keyboardHeight + "px, centerY=" + centerY + "px");
     _floatingLayoutParams.y = centerY;
     _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+    saveFloatingKeyboardPosition();
     
     showDebugToast("Keyboard centered vertically");
     android.util.Log.d("FloatingKeyboard", "Keyboard centered vertically at y=" + centerY);
@@ -2368,6 +2500,7 @@ public class FloatingKeyboard2 extends InputMethodService
     _floatingLayoutParams.x = centerX;
     _floatingLayoutParams.y = centerY;
     _windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
+    saveFloatingKeyboardPosition();
     
     showDebugToast("Keyboard centered");
     android.util.Log.d("FloatingKeyboard", "Keyboard centered at x=" + centerX + ", y=" + centerY);
