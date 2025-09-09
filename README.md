@@ -4,6 +4,9 @@
 
 A personal fork of [Unexpected Keyboard](https://github.com/Julow/Unexpected-Keyboard) with additional features I've wanted as I've gradually increased the amount of code I'm writing on my phone (essentially testing out LLMs as a way of achiving "arbitrary dotfiles" for adding customisation to apps that don't otherwise expose it)
 
+![](rec.mp4)
+*Quick screencast showing dragging, resizing, layout-change keybinds, persistence mode (here enables space-to-scroll in Chrome)*
+
 ## Features Added
 
 ### Floating IME
@@ -11,16 +14,8 @@ A personal fork of [Unexpected Keyboard](https://github.com/Julow/Unexpected-Key
   - No longer takes up screen real estate, apps flow to use the full space
   - Floating and docked modes are separate IMEs, switching back-and-forth is via system input toggle
 - **Resizing**: On-the-fly resizing of the keyboard with remembered position and size for landscape and portrait
-- **Fast toggle**: tapping a gap on the surface disables the keyboard, re-enabled by a small handle, passing through touches and swipes
+- **Fast toggle**: tapping a gap on the surface disables the keyboard, re-enabled by a small button, passing through touches and swipes
   - Indended for use with split layouts, makes landscape mode much more usable
-
-Floating resizable landscape with split layout:
-
-<img src="img/split.jpg" width="720" />
-
-Floating resizable portrait with ortho layout:
-
-<img src="img/float.jpg" height="720" />
 
 ### Layout Loading from Storage
 - Load / refresh XML keyboard layouts from device storage
@@ -30,8 +25,8 @@ Floating resizable portrait with ortho layout:
 ### Advanced Key Actions
 - **Layout switching**: `switch_to_layout_<layoutName>` key action for direct layout switching via shortcuts
 - **Floating control**: `toggle_floating` switches between docked and floating IME modes  
-- **Persistence toggle**: `toggle_persistence` controls floating keyboard persistence (stays visible when no text field focused)
-- **Quick disable**: Always-present enable/disable toggle for temporary keyboard hiding
+- **Persistence toggle**: `toggle_persistence` controls floating keyboard persistence (stays visible when no text field focused for Android control)
+- **Snapping** `snap_*` snaps to one of `[top, bottom, left, right]`, `center_*` to one of `[horizontal, vertical, both]`
 
 ### Misc
 - **Nord colorscheme**: Adds Nord theme as native
@@ -40,10 +35,3 @@ Floating resizable portrait with ortho layout:
 ## Build
 
 Added a `make {debug,release,clean}` for Claude to use to build on Nix-enabled systems, since Claude kept forgetting how to build when the conversation was compacted and `shell.nix` wasn't working when I was testing.
-
-## TODO
-
-- [ ] Respect Persistence mode in the non-floating keyboard IME; when Persistence is toggled, the keyboard should not respect OS-level hide-IME signals (like exiting a text field or the Android "hide keyboard" navbar toggle), and always remain visible until Persistence is toggled off.
-
-### Future (Do not action these TODOs automatically)
-- [ ] Entire app config is possible to drive from storage as e.g. `.unexpected_keyboard.json`, not just layouts.
