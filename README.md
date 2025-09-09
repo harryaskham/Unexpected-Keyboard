@@ -4,7 +4,7 @@
 
 A personal fork of [Unexpected Keyboard](https://github.com/Julow/Unexpected-Keyboard) with additional features I've wanted as I've gradually increased the amount of code I'm writing on my phone (essentially testing out LLMs as a way of achiving "arbitrary dotfiles" for adding customisation to apps that don't otherwise expose it)
 
-https://github.com/user-attachments/assets/cd4c6508-4e0c-44df-9581-559b9b667182
+![](https://github.com/user-attachments/assets/cd4c6508-4e0c-44df-9581-559b9b667182)
 *Quick screencast showing dragging, resizing, layout-change keybinds, persistence mode (here enables space-to-scroll in Chrome)*
 
 ## Features Added
