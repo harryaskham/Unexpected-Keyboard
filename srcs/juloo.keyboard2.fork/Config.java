@@ -5,7 +5,10 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
+import java.io.File;
+import java.io.FileInputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import juloo.keyboard2.fork.prefs.CustomExtraKeysPreference;
@@ -148,13 +151,28 @@ public final class Config
     }
     else
     {
-      keyboardHeightPercent = _prefs.getInt(foldable_unfolded ? "keyboard_height_unfolded" : "keyboard_height", 35);
+      keyboardHeightPercent = _prefs.getInt(foldable_unfolded ? "keyboard_height_unfolded" : "keyboard_height", 30);
       keyboardWidthPercent = _prefs.getInt(foldable_unfolded ? "keyboard_width_unfolded" : "keyboard_width", 100);
       floatingKeyboardHeightPercent = _prefs.getInt(foldable_unfolded ? "floating_keyboard_height_unfolded" : "floating_keyboard_height", 25);
       floatingKeyboardWidthPercent = _prefs.getInt(foldable_unfolded ? "floating_keyboard_width_unfolded" : "floating_keyboard_width", 100);
       android.util.Log.d("Config", "Loaded portrait floating dimensions: " + floatingKeyboardWidthPercent + "% x " + floatingKeyboardHeightPercent + "%");
     }
     layouts = LayoutsPreference.load_from_preferences(res, _prefs);
+    // Auto-load layouts from external directory if configured
+    if (_prefs.getBoolean("auto_load_external_layouts", true))
+    {
+      String extDir = _prefs.getString("external_layouts_directory",
+          "/storage/emulated/0/shared/unexpected_keyboard/layouts");
+      if (extDir != null && !extDir.isEmpty())
+      {
+        List<KeyboardData> extLayouts = loadLayoutsFromDirectory(extDir);
+        if (!extLayouts.isEmpty())
+        {
+          // Replace layouts list with external layouts (keeping nulls/system layouts)
+          layouts = extLayouts;
+        }
+      }
+    }
     inverse_numpad = _prefs.getString("numpad_layout", "default").equals("low_first");
     String number_row = _prefs.getString("number_row", "no_number_row");
     add_number_row = !number_row.equals("no_number_row");
@@ -173,39 +191,39 @@ public final class Config
     longPressTimeout = _prefs.getInt("longpress_timeout", 600);
     longPressInterval = _prefs.getInt("longpress_interval", 65);
     keyrepeat_enabled = _prefs.getBoolean("keyrepeat_enabled", true);
-    margin_bottom = get_dip_pref_oriented(dm, "margin_bottom", 7, 3);
-    margin_top = get_dip_pref_oriented(dm, "margin_top", 3, 3);
+    margin_bottom = get_dip_pref_oriented(dm, "margin_bottom", 0, 0);
+    margin_top = get_dip_pref_oriented(dm, "margin_top", 0, 0);
     key_vertical_margin = get_dip_pref(dm, "key_vertical_margin", 1.5f) / 100;
     key_horizontal_margin = get_dip_pref(dm, "key_horizontal_margin", 2) / 100;
     // Load pixel-based margins
     key_vertical_margin_px = get_dip_pref(dm, "key_vertical_margin_px", 2.0f);
-    key_horizontal_margin_px = get_dip_pref(dm, "key_horizontal_margin_px", 3.0f);
-    use_pixel_margins = _prefs.getBoolean("use_pixel_margins", false);
+    key_horizontal_margin_px = get_dip_pref(dm, "key_horizontal_margin_px", 2.0f);
+    use_pixel_margins = _prefs.getBoolean("use_pixel_margins", true);
     // Label brightness is used as the alpha channel
     labelBrightness = _prefs.getInt("label_brightness", 100) * 255 / 100;
     // Keyboard opacity
-    keyboardOpacity = _prefs.getInt("keyboard_opacity", 100) * 255 / 100;
+    keyboardOpacity = _prefs.getInt("keyboard_opacity", 0) * 255 / 100;
     keyOpacity = _prefs.getInt("key_opacity", 100) * 255 / 100;
     keyActivatedOpacity = _prefs.getInt("key_activated_opacity", 100) * 255 / 100;
     // keyboard border settings
-    borderConfig = _prefs.getBoolean("border_config", false);
-    customBorderRadius = _prefs.getInt("custom_border_radius", 0) / 100.f;
-    customBorderLineWidth = get_dip_pref(dm, "custom_border_line_width", 0);
+    borderConfig = _prefs.getBoolean("border_config", true);
+    customBorderRadius = _prefs.getInt("custom_border_radius", 8) / 100.f;
+    customBorderLineWidth = get_dip_pref(dm, "custom_border_line_width", 1.5f);
     screenHeightPixels = dm.heightPixels;
     horizontal_margin =
-      get_dip_pref_oriented(dm, "horizontal_margin", 3, 28);
+      get_dip_pref_oriented(dm, "horizontal_margin", 0, 0);
     double_tap_lock_shift = _prefs.getBoolean("lock_double_tap", false);
     characterSize =
-      _prefs.getFloat("character_size", 1.15f)
+      _prefs.getFloat("character_size", 0.66f)
       * characterSizeScale;
     mainLabelSize =
-      _prefs.getFloat("main_label_size", 1.15f)
+      _prefs.getFloat("main_label_size", 0.66f)
       * characterSizeScale;
     subLabelSize =
-      _prefs.getFloat("sub_label_size", 1.15f)
+      _prefs.getFloat("sub_label_size", 0.66f)
       * characterSizeScale;
-    theme = getThemeId(res, _prefs.getString("theme", ""));
-    autocapitalisation = _prefs.getBoolean("autocapitalisation", true);
+    theme = getThemeId(res, _prefs.getString("theme", "nord"));
+    autocapitalisation = _prefs.getBoolean("autocapitalisation", false);
     switch_input_immediate = _prefs.getBoolean("switch_input_immediate", false);
     extra_keys_param = ExtraKeysPreference.get_extra_keys(_prefs);
     extra_keys_custom = CustomExtraKeysPreference.get(_prefs);
@@ -215,8 +233,8 @@ public final class Config
     circle_sensitivity = Integer.valueOf(_prefs.getString("circle_sensitivity", "2"));
     clipboard_history_enabled = _prefs.getBoolean("clipboard_history_enabled", false);
     keyboard_persistence_enabled = _prefs.getBoolean("keyboard_persistence_enabled", false);
-    selected_font = _prefs.getString("font", "default");
-    keyboardDisabledOpacity = _prefs.getInt("keyboard_disabled_opacity", 30);
+    selected_font = _prefs.getString("font", "fira_code");
+    keyboardDisabledOpacity = _prefs.getInt("keyboard_disabled_opacity", 0);
     snapWidthPercent = _prefs.getInt("snap_width_percent", 50);
     snapHeightPercent = _prefs.getInt("snap_height_percent", 40);
     snapResizeEnabled = _prefs.getBoolean("snap_resize_enabled", true);
@@ -357,7 +375,7 @@ public final class Config
 
   /** Config migrations. */
 
-  private static int CONFIG_VERSION = 3;
+  private static int CONFIG_VERSION = 4;
 
   public static void migrate(SharedPreferences prefs)
   {
@@ -394,6 +412,14 @@ public final class Config
         }
         // Fallthrough
       case 3:
+        // Save the default external layouts directory path
+        // This directory will be auto-loaded on startup
+        if (!prefs.contains("external_layouts_directory")) {
+          e.putString("external_layouts_directory", "/storage/emulated/0/shared/unexpected_keyboard/layouts");
+          e.putBoolean("auto_load_external_layouts", true);
+        }
+        // Fallthrough
+      case 4:
       default: break;
     }
     e.apply();
@@ -404,5 +430,51 @@ public final class Config
     if (name == null || name.equals("system"))
       return new LayoutsPreference.SystemLayout();
     return new LayoutsPreference.NamedLayout(name);
+  }
+
+  /** Load keyboard layouts from XML files in a directory. */
+  private static List<KeyboardData> loadLayoutsFromDirectory(String dirPath)
+  {
+    List<KeyboardData> result = new ArrayList<KeyboardData>();
+    try
+    {
+      File dir = new File(dirPath);
+      if (!dir.exists() || !dir.isDirectory() || !dir.canRead())
+        return result;
+      File[] xmlFiles = dir.listFiles(new java.io.FilenameFilter() {
+        public boolean accept(File d, String name) {
+          return name.toLowerCase().endsWith(".xml");
+        }
+      });
+      if (xmlFiles == null)
+        return result;
+      Arrays.sort(xmlFiles, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+      for (File xmlFile : xmlFiles)
+      {
+        try
+        {
+          FileInputStream fis = new FileInputStream(xmlFile);
+          byte[] data = new byte[(int)xmlFile.length()];
+          int bytesRead = fis.read(data);
+          fis.close();
+          if (bytesRead > 0)
+          {
+            String xml = new String(data, 0, bytesRead, "UTF-8");
+            KeyboardData layout = KeyboardData.load_string_exn(xml);
+            if (layout != null)
+              result.add(layout);
+          }
+        }
+        catch (Exception e)
+        {
+          android.util.Log.w("Config", "Failed to load layout from " + xmlFile.getName() + ": " + e.getMessage());
+        }
+      }
+    }
+    catch (Exception e)
+    {
+      android.util.Log.w("Config", "Error loading external layouts: " + e.getMessage());
+    }
+    return result;
   }
 }

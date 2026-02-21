@@ -131,20 +131,8 @@ public class ExtraKeysPreference extends PreferenceCategory
   /** Whether an extra key is enabled by default. */
   public static boolean default_checked(String name)
   {
-    switch (name)
-    {
-      case "voice_typing":
-      case "change_method":
-      case "switch_clipboard":
-      case "compose":
-      case "tab":
-      case "esc":
-      case "f11_placeholder":
-      case "f12_placeholder":
-        return true;
-      default:
-        return false;
-    }
+    // Default: none selected
+    return false;
   }
 
   /** Text that describe a key. Might be null. */
