@@ -33,6 +33,8 @@ public class RingModsReceiver extends BroadcastReceiver
     if (intent == null || !ACTION.equals(intent.getAction()))
       return;
 
+    Log.i(TAG, "Received HID broadcast: type=" + intent.getStringExtra("type"));
+
     Keyboard2 kbd = Keyboard2.instance;
     if (kbd == null)
     {
