@@ -14,6 +14,9 @@ import android.view.inputmethod.InputConnection;
  * them through the keyboard's InputConnection. This allows ring-mods gestures
  * to work even when Unexpected Keyboard is the active IME.
  *
+ * Works with both Keyboard2 (docked) and FloatingKeyboard2 (floating) — checks
+ * whichever IME instance is currently available.
+ *
  * Intent action: "com.ringmods.HID_EVENT"
  * Extras:
  *   "type"       = "key" | "text" | "scroll"
@@ -33,23 +36,34 @@ public class RingModsReceiver extends BroadcastReceiver
     if (intent == null || !ACTION.equals(intent.getAction()))
       return;
 
-    Log.i(TAG, "Received HID broadcast: type=" + intent.getStringExtra("type"));
+    String type = intent.getStringExtra("type");
+    Log.i(TAG, "Received HID broadcast: type=" + type);
 
-    Keyboard2 kbd = Keyboard2.instance;
-    if (kbd == null)
+    // Try to find an active IME — check both docked and floating
+    InputConnection ic = null;
+    String source = null;
+
+    if (Keyboard2.instance != null)
     {
-      Log.w(TAG, "Keyboard2 instance not available");
-      return;
+      ic = Keyboard2.instance.getCurrentInputConnection();
+      if (ic != null) source = "Keyboard2";
+    }
+    if (ic == null && FloatingKeyboard2.instance != null)
+    {
+      ic = FloatingKeyboard2.instance.getCurrentInputConnection();
+      if (ic != null) source = "FloatingKeyboard2";
     }
 
-    InputConnection ic = kbd.getCurrentInputConnection();
     if (ic == null)
     {
-      Log.w(TAG, "No InputConnection available");
+      Log.w(TAG, "No InputConnection available (Keyboard2.instance="
+          + (Keyboard2.instance != null) + " FloatingKeyboard2.instance="
+          + (FloatingKeyboard2.instance != null) + ")");
       return;
     }
 
-    String type = intent.getStringExtra("type");
+    Log.d(TAG, "Using InputConnection from " + source);
+
     if (type == null)
       type = "key";
 
@@ -61,7 +75,7 @@ public class RingModsReceiver extends BroadcastReceiver
         if (keycode != 0)
         {
           sendKeyDownUp(ic, keycode, metaState);
-          Log.d(TAG, "Injected key: " + keycode + " meta: " + metaState);
+          Log.d(TAG, "Injected key: " + keycode + " meta: " + metaState + " via " + source);
         }
         break;
 
@@ -70,7 +84,7 @@ public class RingModsReceiver extends BroadcastReceiver
         if (text != null && !text.isEmpty())
         {
           ic.commitText(text, 1);
-          Log.d(TAG, "Injected text: " + text);
+          Log.d(TAG, "Injected text: " + text + " via " + source);
         }
         break;
 
@@ -78,12 +92,11 @@ public class RingModsReceiver extends BroadcastReceiver
         int amount = intent.getIntExtra("amount", 0);
         if (amount != 0)
         {
-          // Send as DPAD key events — amount is number of presses
           int keyCode = amount > 0 ? KeyEvent.KEYCODE_DPAD_DOWN : KeyEvent.KEYCODE_DPAD_UP;
           int count = Math.abs(amount);
-          for (int i = 0; i < count && i < 20; i++) // cap at 20 to prevent abuse
+          for (int i = 0; i < count && i < 20; i++)
             sendKeyDownUp(ic, keyCode, 0);
-          Log.d(TAG, "Injected scroll: " + amount + " (" + count + "x " + (amount > 0 ? "DOWN" : "UP") + ")");
+          Log.d(TAG, "Injected scroll: " + amount + " via " + source);
         }
         break;
 
@@ -98,7 +111,7 @@ public class RingModsReceiver extends BroadcastReceiver
     ic.sendKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0,
         metaState, KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
         KeyEvent.FLAG_SOFT_KEYBOARD | KeyEvent.FLAG_KEEP_TOUCH_MODE));
-    ic.sendKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0,
+    ic.sendKeyEvent(new KeyEvent(now, now + 1, KeyEvent.ACTION_UP, keyCode, 0,
         metaState, KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
         KeyEvent.FLAG_SOFT_KEYBOARD | KeyEvent.FLAG_KEEP_TOUCH_MODE));
   }

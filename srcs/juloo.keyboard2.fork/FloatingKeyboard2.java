@@ -18,6 +18,7 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.text.InputType;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.*;
 import android.view.inputmethod.EditorInfo;
 import android.widget.LinearLayout;
@@ -34,6 +35,9 @@ import juloo.keyboard2.fork.prefs.LayoutsPreference;
 public class FloatingKeyboard2 extends InputMethodService
   implements SharedPreferences.OnSharedPreferenceChangeListener
 {
+  /** Static reference for cross-app communication (e.g. RingModsReceiver). */
+  public static FloatingKeyboard2 instance;
+
   // Handle styling constants
   private static final int HANDLE_COLOR_INACTIVE = 0xFF3B4252; // Nord darker blue-gray
   private static final int HANDLE_COLOR_ACTIVE = 0xFFD8DEE9; // Light gray when pressed
@@ -155,6 +159,8 @@ public class FloatingKeyboard2 extends InputMethodService
         current_layout_unmodified());
   }
 
+  private RingModsReceiver _ringModsReceiver;
+
   @Override
   public void onCreate()
   {
@@ -169,12 +175,28 @@ public class FloatingKeyboard2 extends InputMethodService
     Logs.set_debug_logs(getResources().getBoolean(R.bool.debug_logs));
     ClipboardHistoryService.on_startup(this, _keyeventhandler);
     _foldStateTracker.setChangedCallback(() -> { refresh_config(); });
-    
+
     _windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+
+    // Register ring-mods HID event receiver
+    instance = this;
+    _ringModsReceiver = new RingModsReceiver();
+    android.content.IntentFilter filter = new android.content.IntentFilter(RingModsReceiver.ACTION);
+    if (android.os.Build.VERSION.SDK_INT >= 33) {
+      registerReceiver(_ringModsReceiver, filter, android.content.Context.RECEIVER_EXPORTED);
+    } else {
+      registerReceiver(_ringModsReceiver, filter);
+    }
+    Log.d("FloatingKeyboard2", "RingModsReceiver registered");
   }
 
   @Override
   public void onDestroy() {
+    instance = null;
+    if (_ringModsReceiver != null) {
+      try { unregisterReceiver(_ringModsReceiver); } catch (Exception e) { Log.w("FloatingKeyboard2", "unregister failed", e); }
+      _ringModsReceiver = null;
+    }
     super.onDestroy();
     removeFloatingKeyboard();
     _foldStateTracker.close();
