@@ -1,10 +1,14 @@
-.PHONY: debug release clean
+.PHONY: debug release clean install
 
 debug:
-	nix-shell -p openjdk17 --command "ANDROID_HOME=$(PWD)/android-sdk ./gradlew assembleDebug"
+	nix develop --command gradle assembleDebug
 
 release:
-	nix-shell -p openjdk17 --command "ANDROID_HOME=$(PWD)/android-sdk ./gradlew assembleRelease"
+	nix develop --command gradle assembleRelease
 
 clean:
-	nix-shell -p openjdk17 --command "ANDROID_HOME=$(PWD)/android-sdk ./gradlew clean"
+	nix develop --command gradle clean
+
+install: debug
+	adb connect samsung-sm-s928b:5555 || true
+	adb -e install -r build/outputs/apk/debug/juloo.keyboard2.fork.debug.apk

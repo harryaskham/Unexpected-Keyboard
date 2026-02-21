@@ -37,6 +37,9 @@ import juloo.keyboard2.fork.prefs.LayoutsPreference;
 public class Keyboard2 extends InputMethodService
   implements SharedPreferences.OnSharedPreferenceChangeListener
 {
+  /** Static reference for cross-app communication (e.g. RingModsReceiver). */
+  public static Keyboard2 instance;
+
   private Keyboard2View _keyboardView;
   private KeyEventHandler _keyeventhandler;
   /** If not 'null', the layout to use instead of [_config.current_layout]. */
@@ -51,6 +54,8 @@ public class Keyboard2 extends InputMethodService
   private Config _config;
 
   private FoldStateTracker _foldStateTracker;
+
+  private RingModsReceiver _ringModsReceiver;
   
 
   /** Layout currently visible before it has been modified. */
@@ -130,10 +135,26 @@ public class Keyboard2 extends InputMethodService
     Logs.set_debug_logs(getResources().getBoolean(R.bool.debug_logs));
     ClipboardHistoryService.on_startup(this, _keyeventhandler);
     _foldStateTracker.setChangedCallback(() -> { refresh_config(); });
+
+    // Register ring-mods HID event receiver
+    instance = this;
+    _ringModsReceiver = new RingModsReceiver();
+    android.content.IntentFilter filter = new android.content.IntentFilter(RingModsReceiver.ACTION);
+    if (android.os.Build.VERSION.SDK_INT >= 33) {
+      registerReceiver(_ringModsReceiver, filter, android.content.Context.RECEIVER_EXPORTED);
+    } else {
+      registerReceiver(_ringModsReceiver, filter);
+    }
+    Log.d("Keyboard2", "RingModsReceiver registered");
   }
 
   @Override
   public void onDestroy() {
+    instance = null;
+    if (_ringModsReceiver != null) {
+      try { unregisterReceiver(_ringModsReceiver); } catch (Exception e) {}
+      _ringModsReceiver = null;
+    }
     super.onDestroy();
     _foldStateTracker.close();
   }
