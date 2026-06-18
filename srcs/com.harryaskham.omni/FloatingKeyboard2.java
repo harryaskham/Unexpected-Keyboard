@@ -1183,6 +1183,10 @@ public class FloatingKeyboard2 extends InputMethodService
     private int dragInitialX, dragInitialY;
     
     private boolean passthroughMode = false;
+    // Saved main-window size while in passthrough so it can be collapsed to 0x0
+    // (so only the toggle-button window occupies space) and restored on exit.
+    private int _savedFloatingWidth = WindowManager.LayoutParams.WRAP_CONTENT;
+    private int _savedFloatingHeight = WindowManager.LayoutParams.WRAP_CONTENT;
     
     // Key-initiated drag/resize modes
     private boolean keyDragMode = false;
@@ -1357,6 +1361,13 @@ public class FloatingKeyboard2 extends InputMethodService
           
           // Make the main window not touchable so touches pass through to underlying apps
           _floatingLayoutParams.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+          // Belt-and-suspenders: collapse the main window to zero size so the old
+          // keyboard area occupies no space and cannot capture touch. Only the
+          // small toggle-button window remains; restored in exitPassthroughMode.
+          _savedFloatingWidth = _floatingLayoutParams.width;
+          _savedFloatingHeight = _floatingLayoutParams.height;
+          _floatingLayoutParams.width = 0;
+          _floatingLayoutParams.height = 0;
           windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
           
           // Dim the keyboard to show it's in passthrough mode
@@ -1371,6 +1382,7 @@ public class FloatingKeyboard2 extends InputMethodService
           createToggleButtonWindow();
           
           android.util.Log.d("FloatingKeyboard", "Entered passthrough mode - main window not touchable, passthrough keyboard created");
+          Logs.log("FloatingKeyboard2", "Entered minimised/passthrough: main window NOT_TOUCHABLE + collapsed to 0x0 (was " + _savedFloatingWidth + "x" + _savedFloatingHeight + "); only toggle button occupies space");
         } catch (Exception e) {
           android.util.Log.e("FloatingKeyboard", "Error entering passthrough mode: " + e.getMessage());
         }
@@ -1391,6 +1403,9 @@ public class FloatingKeyboard2 extends InputMethodService
           
           // Restore main window touchability
           _floatingLayoutParams.flags &= ~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+          // Restore the main window size collapsed on entry.
+          _floatingLayoutParams.width = _savedFloatingWidth;
+          _floatingLayoutParams.height = _savedFloatingHeight;
           windowManager.updateViewLayout(_floatingContainer, _floatingLayoutParams);
           
           // Restore keyboard full opacity
@@ -1404,6 +1419,7 @@ public class FloatingKeyboard2 extends InputMethodService
           removeToggleButtonWindow();
           
           android.util.Log.d("FloatingKeyboard", "Exited passthrough mode - main window touchable, keyboard restored, passthrough keyboard removed");
+          Logs.log("FloatingKeyboard2", "Exited minimised/passthrough: restored main window to " + _savedFloatingWidth + "x" + _savedFloatingHeight + " + touchable");
         } catch (Exception e) {
           android.util.Log.e("FloatingKeyboard", "Error exiting passthrough mode: " + e.getMessage());
         }
