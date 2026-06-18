@@ -36,6 +36,8 @@
         <category android:name="android.intent.category.LAUNCHER"/>
       </intent-filter>
     </activity>
+
+    <activity android:name="com.harryaskham.omni.LogViewActivity" android:label="Omni logs" android:theme="@style/settingsTheme" android:exported="false" android:directBootAware="true"/>
   </application>
 
   <!-- To query enabled input methods for voice IME detection -->

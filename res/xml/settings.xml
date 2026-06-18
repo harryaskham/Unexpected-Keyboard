@@ -94,4 +94,13 @@
     <Preference android:key="export_settings" android:title="Export Settings" android:summary="Save current settings to XML file"/>
     <Preference android:key="import_settings" android:title="Import Settings" android:summary="Load settings from XML file"/>
   </PreferenceCategory>
+  <PreferenceCategory android:title="Command server">
+    <CheckBoxPreference android:key="command_server_enabled" android:title="Enable command server" android:summary="Accept injected key/text/scroll broadcasts from com.harryaskham.* and com.termux.* apps (action com.harryaskham.omni.INJECT). Restart the keyboard after changing." android:defaultValue="true"/>
+    <Preference android:key="command_server_info" android:title="Accepted action and senders" android:summary="Action: com.harryaskham.omni.INJECT (legacy com.ringmods.HID_EVENT). Allowed senders: com.harryaskham.*, com.termux.*. Extras: type=key|text|scroll; keycode + meta_state; text; amount; sender_package." android:selectable="false"/>
+  </PreferenceCategory>
+  <PreferenceCategory android:title="Diagnostics">
+    <Preference android:key="view_logs" android:title="View logs" android:summary="Recent keyboard logs, copyable, for bug reports">
+      <intent android:targetPackage="com.harryaskham.omni" android:targetClass="com.harryaskham.omni.LogViewActivity"/>
+    </Preference>
+  </PreferenceCategory>
 </PreferenceScreen>

@@ -81,6 +81,7 @@ public final class Config
   public int circle_sensitivity;
   public boolean clipboard_history_enabled;
   public boolean keyboard_persistence_enabled;
+  public boolean command_server_enabled; // Omni injection command server (RingModsReceiver)
   public String selected_font;
   public int keyboardDisabledOpacity; // 0 - 100 (percentage)
   public int snapWidthPercent; // Percentage of screen width for snap operations
@@ -233,6 +234,7 @@ public final class Config
     circle_sensitivity = Integer.valueOf(_prefs.getString("circle_sensitivity", "2"));
     clipboard_history_enabled = _prefs.getBoolean("clipboard_history_enabled", false);
     keyboard_persistence_enabled = _prefs.getBoolean("keyboard_persistence_enabled", false);
+    command_server_enabled = _prefs.getBoolean("command_server_enabled", true);
     selected_font = _prefs.getString("font", "fira_code");
     keyboardDisabledOpacity = _prefs.getInt("keyboard_disabled_opacity", 0);
     snapWidthPercent = _prefs.getInt("snap_width_percent", 50);

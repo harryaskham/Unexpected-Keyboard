@@ -100,12 +100,12 @@ public class RingModsReceiver extends BroadcastReceiver
     String senderPackage = intent.getStringExtra(EXTRA_SENDER_PACKAGE);
     if (!isAllowedSenderPackage(senderPackage))
     {
-      Log.w(TAG, "Rejected injection from disallowed sender_package=" + senderPackage);
+      Logs.warn(TAG, "Rejected injection from disallowed sender_package=" + senderPackage);
       return;
     }
 
     String type = intent.getStringExtra("type");
-    Log.i(TAG, "Received injection: type=" + type + " action=" + intent.getAction()
+    Logs.log(TAG, "Received injection: type=" + type + " action=" + intent.getAction()
         + " sender=" + (senderPackage == null ? "<unset>" : senderPackage));
 
     // Try to find an active IME — check both docked and floating
@@ -125,13 +125,13 @@ public class RingModsReceiver extends BroadcastReceiver
 
     if (ic == null)
     {
-      Log.w(TAG, "No InputConnection available (Keyboard2.instance="
+      Logs.warn(TAG, "No InputConnection available (Keyboard2.instance="
           + (Keyboard2.instance != null) + " FloatingKeyboard2.instance="
           + (FloatingKeyboard2.instance != null) + ")");
       return;
     }
 
-    Log.d(TAG, "Using InputConnection from " + source);
+    Logs.log(TAG, "Using InputConnection from " + source);
 
     if (type == null)
       type = "key";
@@ -144,7 +144,7 @@ public class RingModsReceiver extends BroadcastReceiver
         if (keycode != 0)
         {
           sendKeyDownUp(ic, keycode, metaState);
-          Log.d(TAG, "Injected key: " + keycode + " meta: " + metaState + " via " + source);
+          Logs.log(TAG, "Injected key: " + keycode + " meta: " + metaState + " via " + source);
         }
         break;
 
@@ -153,7 +153,7 @@ public class RingModsReceiver extends BroadcastReceiver
         if (text != null && !text.isEmpty())
         {
           ic.commitText(text, 1);
-          Log.d(TAG, "Injected text: " + text + " via " + source);
+          Logs.log(TAG, "Injected text: " + text + " via " + source);
         }
         break;
 
@@ -165,12 +165,12 @@ public class RingModsReceiver extends BroadcastReceiver
           int count = Math.abs(amount);
           for (int i = 0; i < count && i < 20; i++)
             sendKeyDownUp(ic, keyCode, 0);
-          Log.d(TAG, "Injected scroll: " + amount + " via " + source);
+          Logs.log(TAG, "Injected scroll: " + amount + " via " + source);
         }
         break;
 
       default:
-        Log.w(TAG, "Unknown injection event type: " + type);
+        Logs.warn(TAG, "Unknown injection event type: " + type);
     }
   }
 

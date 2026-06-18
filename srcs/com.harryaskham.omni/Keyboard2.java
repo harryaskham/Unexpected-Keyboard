@@ -136,16 +136,20 @@ public class Keyboard2 extends InputMethodService
     ClipboardHistoryService.on_startup(this, _keyeventhandler);
     _foldStateTracker.setChangedCallback(() -> { refresh_config(); });
 
-    // Register ring-mods HID event receiver
+    // Register Omni injection command server (gated by settings)
     instance = this;
-    _ringModsReceiver = new RingModsReceiver();
-    android.content.IntentFilter filter = RingModsReceiver.buildIntentFilter();
-    if (android.os.Build.VERSION.SDK_INT >= 33) {
-      registerReceiver(_ringModsReceiver, filter, android.content.Context.RECEIVER_EXPORTED);
+    if (Config.globalConfig() != null && Config.globalConfig().command_server_enabled) {
+      _ringModsReceiver = new RingModsReceiver();
+      android.content.IntentFilter filter = RingModsReceiver.buildIntentFilter();
+      if (android.os.Build.VERSION.SDK_INT >= 33) {
+        registerReceiver(_ringModsReceiver, filter, android.content.Context.RECEIVER_EXPORTED);
+      } else {
+        registerReceiver(_ringModsReceiver, filter);
+      }
+      Logs.log("Keyboard2", "Omni injection command server registered");
     } else {
-      registerReceiver(_ringModsReceiver, filter);
+      Logs.log("Keyboard2", "Omni injection command server disabled in settings");
     }
-    Log.d("Keyboard2", "Omni injection receiver registered");
   }
 
   @Override

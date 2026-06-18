@@ -178,16 +178,20 @@ public class FloatingKeyboard2 extends InputMethodService
 
     _windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
 
-    // Register ring-mods HID event receiver
+    // Register Omni injection command server (gated by settings)
     instance = this;
-    _ringModsReceiver = new RingModsReceiver();
-    android.content.IntentFilter filter = RingModsReceiver.buildIntentFilter();
-    if (android.os.Build.VERSION.SDK_INT >= 33) {
-      registerReceiver(_ringModsReceiver, filter, android.content.Context.RECEIVER_EXPORTED);
+    if (Config.globalConfig() != null && Config.globalConfig().command_server_enabled) {
+      _ringModsReceiver = new RingModsReceiver();
+      android.content.IntentFilter filter = RingModsReceiver.buildIntentFilter();
+      if (android.os.Build.VERSION.SDK_INT >= 33) {
+        registerReceiver(_ringModsReceiver, filter, android.content.Context.RECEIVER_EXPORTED);
+      } else {
+        registerReceiver(_ringModsReceiver, filter);
+      }
+      Logs.log("FloatingKeyboard2", "Omni injection command server registered");
     } else {
-      registerReceiver(_ringModsReceiver, filter);
+      Logs.log("FloatingKeyboard2", "Omni injection command server disabled in settings");
     }
-    Log.d("FloatingKeyboard2", "Omni injection receiver registered");
   }
 
   @Override
