@@ -10,27 +10,27 @@
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
 
   <application android:label="@string/app_name" android:allowBackup="true" android:icon="@mipmap/ic_launcher" android:hardwareAccelerated="false">
-    <service android:name="juloo.keyboard2.fork.Keyboard2" android:label="@string/app_name" android:permission="android.permission.BIND_INPUT_METHOD" android:exported="true" android:directBootAware="true">
+    <service android:name="com.harryaskham.omni.Keyboard2" android:label="@string/app_name" android:permission="android.permission.BIND_INPUT_METHOD" android:exported="true" android:directBootAware="true">
       <intent-filter>
         <action android:name="android.view.InputMethod"/>
       </intent-filter>
       <meta-data android:name="android.view.im" android:resource="@xml/method"/>
     </service>
     
-    <service android:name="juloo.keyboard2.fork.FloatingKeyboard2" android:label="@string/app_name_floating" android:permission="android.permission.BIND_INPUT_METHOD" android:exported="true" android:directBootAware="true">
+    <service android:name="com.harryaskham.omni.FloatingKeyboard2" android:label="@string/app_name_floating" android:permission="android.permission.BIND_INPUT_METHOD" android:exported="true" android:directBootAware="true">
       <intent-filter>
         <action android:name="android.view.InputMethod"/>
       </intent-filter>
       <meta-data android:name="android.view.im" android:resource="@xml/floating_method"/>
     </service>
 
-    <activity android:name="juloo.keyboard2.fork.SettingsActivity" android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:theme="@style/settingsTheme" android:exported="true" android:directBootAware="true">
+    <activity android:name="com.harryaskham.omni.SettingsActivity" android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:theme="@style/settingsTheme" android:exported="true" android:directBootAware="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
       </intent-filter>
     </activity>
 
-    <activity android:name="juloo.keyboard2.fork.LauncherActivity" android:icon="@mipmap/ic_launcher" android:theme="@style/appTheme" android:exported="true" android:directBootAware="true">
+    <activity android:name="com.harryaskham.omni.LauncherActivity" android:icon="@mipmap/ic_launcher" android:theme="@style/appTheme" android:exported="true" android:directBootAware="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>

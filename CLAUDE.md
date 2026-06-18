@@ -21,7 +21,7 @@ This is a personal fork of Unexpected Keyboard - an Android virtual keyboard app
 - Uses Nix for reproducible builds with OpenJDK 17
 - Android SDK located at `./android-sdk` 
 - Gradle wrapper handles Android build tasks
-- Package name: `juloo.keyboard2.fork`
+- Package name: `com.harryaskham.omni`
 
 ## Architecture Overview
 
@@ -123,17 +123,17 @@ Unit tests focus on floating keyboard logic isolation:
 ## Important Files
 
 **Core IME Implementation:**
-- `srcs/juloo.keyboard2.fork/Keyboard2.java` - Docked keyboard IME
-- `srcs/juloo.keyboard2.fork/FloatingKeyboard2.java` - Floating keyboard IME
+- `srcs/com.harryaskham.omni/Keyboard2.java` - Docked keyboard IME
+- `srcs/com.harryaskham.omni/FloatingKeyboard2.java` - Floating keyboard IME
 
 **Configuration & Data:**
-- `srcs/juloo.keyboard2.fork/Config.java` - Settings and configuration management
-- `srcs/juloo.keyboard2.fork/KeyboardData.java` - Layout data structures
+- `srcs/com.harryaskham.omni/Config.java` - Settings and configuration management
+- `srcs/com.harryaskham.omni/KeyboardData.java` - Layout data structures
 - `srcs/layouts/*.xml` - Keyboard layout definitions
 
 **UI & Rendering:**
-- `srcs/juloo.keyboard2.fork/Keyboard2View.java` - Keyboard rendering and touch handling
-- `srcs/juloo.keyboard2.fork/Theme.java` - Styling and appearance
+- `srcs/com.harryaskham.omni/Keyboard2View.java` - Keyboard rendering and touch handling
+- `srcs/com.harryaskham.omni/Theme.java` - Styling and appearance
 
 **Build & Manifest:**
 - `AndroidManifest.xml` - Dual IME service registration, permissions

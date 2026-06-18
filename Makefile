@@ -11,4 +11,4 @@ clean:
 
 install: debug
 	adb connect samsung-sm-s928b:5555 || true
-	adb -e install -r build/outputs/apk/debug/juloo.keyboard2.fork.debug.apk
+	adb -e install -r build/outputs/apk/debug/com.harryaskham.omni.debug.apk

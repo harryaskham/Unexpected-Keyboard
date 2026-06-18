@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">Klávesnice Unexpected</string>
-    <string name="app_name_debug">Klávesnice Unexpected (pro ladění)</string>
-    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
+    <string name="app_name_release">Omni</string>
+    <string name="app_name_debug">Omni (Debug)</string>
+    <!-- <string name="app_name_floating">Omni (Floating)</string> -->
     <string name="short_description">Nenáročná virtuální klávesnice pro vývojáře.</string>
     <string name="store_description">Hlavní funkcí je možnost psát více znaků posunutím kláves směrem k rohům.\n\nTato aplikace byla původně navržena pro programátory používající Termux.\nNyní je ideální pro každodenní použití.\n\nTato aplikace neobsahuje žádné reklamy, nevyužívá připojení k síti a je Open Source.</string>
     <string name="pref_portrait">V režimu na výšku</string>

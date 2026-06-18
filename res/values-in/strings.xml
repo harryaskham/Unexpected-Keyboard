@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">Unexpected Keyboard</string>
-    <string name="app_name_debug">Unexpected Keyboard (Debug)</string>
-    <!-- <string name="app_name_floating">Unexpected Keyboard Fork (Floating)</string> -->
+    <string name="app_name_release">Omni</string>
+    <string name="app_name_debug">Omni (Debug)</string>
+    <!-- <string name="app_name_floating">Omni (Floating)</string> -->
     <string name="short_description">Keyboard virtual yang ringan dan sadar privasi untuk Android.</string>
     <string name="store_description">Fitur utamanya adalah Anda dapat mengetik lebih banyak karakter dengan menggeser tombol ke arah sudut.\n\nAplikasi ini awalnya dirancang untuk programmer yang menggunakan Termux.\nSekarang sempurna untuk penggunaan sehari-hari.\n\nAplikasi ini tidak berisi iklan, tidak membuat permintaan jaringan dan Open Source.</string>
     <string name="pref_portrait">Dalam mode potret</string>

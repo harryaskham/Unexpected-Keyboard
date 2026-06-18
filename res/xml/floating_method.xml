@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<input-method xmlns:android="http://schemas.android.com/apk/res/android" android:settingsActivity="juloo.keyboard2.fork.SettingsActivity" android:supportsSwitchingToNextInputMethod="true">
+<input-method xmlns:android="http://schemas.android.com/apk/res/android" android:settingsActivity="com.harryaskham.omni.SettingsActivity" android:supportsSwitchingToNextInputMethod="true">
   <!-- Floating keyboard version - same subtypes as main keyboard -->
   <subtype android:label="%s" android:languageTag="en" android:imeSubtypeLocale="en" android:imeSubtypeMode="keyboard" android:isAsciiCapable="true" android:imeSubtypeExtraValue="script=latin,default_layout=latn_qwerty_us"/>
   <subtype android:label="%s" android:languageTag="ar" android:imeSubtypeLocale="ar" android:imeSubtypeMode="keyboard" android:isAsciiCapable="true" android:imeSubtypeExtraValue="script=arabic,default_layout=arab_pc_hindu"/>

@@ -300,7 +300,7 @@ def gen_java(entry_states, machine):
     def gen_entry_state(s):
         name, state = s
         return "  public static final int %s = %d;" % (name, state)
-    print("""package juloo.keyboard2.fork;
+    print("""package com.harryaskham.omni;
 
 /** This file is generated, see [srcs/compose/compile.py]. */
 
