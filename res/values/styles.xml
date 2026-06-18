@@ -79,7 +79,21 @@
     <item name="android:layout_width">wrap_content</item>
     <item name="android:orientation">horizontal</item>
   </style>
-  <style name="appTheme" parent="@android:style/Theme.DeviceDefault.DayNight"/>
+  <!-- App/settings UI theme: Nord brand palette to match nod-term/pulse-server
+       (bd-7dfc8a). This styles the Settings/Launcher/log activities only; the
+       keyboard KEY theme is separate (the `theme` preference + Theme.java) and
+       is intentionally left untouched so the Nord key theme is preserved. -->
+  <style name="appTheme" parent="@android:style/Theme.DeviceDefault">
+    <item name="android:windowBackground">#FF2E3440</item>
+    <item name="android:colorBackground">#FF2E3440</item>
+    <item name="android:colorPrimary">#FF3B4252</item>
+    <item name="android:colorPrimaryDark">#FF2E3440</item>
+    <item name="android:colorAccent">#FF88C0D0</item>
+    <item name="android:statusBarColor">#FF2E3440</item>
+    <item name="android:navigationBarColor">#FF2E3440</item>
+    <item name="android:textColorPrimary">#FFECEFF4</item>
+    <item name="android:textColorSecondary">#FFA9B4C8</item>
+  </style>
   <style name="settingsTheme" parent="appTheme">
     <!-- Setting this in the activity theme so it propagate to nested
          preference screens. -->
