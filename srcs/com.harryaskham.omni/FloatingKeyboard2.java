@@ -923,26 +923,42 @@ public class FloatingKeyboard2 extends InputMethodService
     android.util.Log.d("FloatingKeyboard", "Saved dimensions: " + widthPx + "x" + heightPx + "px (" + widthPercent + "% x " + heightPercent + "%) to keys " + widthKey + ", " + heightKey);
   }
 
+  /**
+   * Full usable display bounds spanning all screens. On a spanned multi-display
+   * device (e.g. both halves of a Surface Duo when the foreground app is spanned)
+   * this is the combined logical display, so the floating keyboard can be
+   * positioned anywhere across both screens instead of clipping to one half.
+   * Falls back to the single real display on API < 30. (bd-6aacf2)
+   */
+  private android.graphics.Point getFullDisplaySize() {
+    android.graphics.Point size = new android.graphics.Point();
+    WindowManager wm = getSystemService(WindowManager.class);
+    if (wm == null) {
+      DisplayMetrics dm = getResources().getDisplayMetrics();
+      size.set(dm.widthPixels, dm.heightPixels);
+      return size;
+    }
+    if (android.os.Build.VERSION.SDK_INT >= 30) {
+      android.graphics.Rect bounds = wm.getMaximumWindowMetrics().getBounds();
+      size.set(bounds.width(), bounds.height());
+    } else {
+      wm.getDefaultDisplay().getRealSize(size);
+    }
+    return size;
+  }
+
   private void clampKeyboardPositionToScreen() {
     if (_floatingLayoutParams == null || _floatingContainer == null) {
       return;
     }
-    
-    // Get screen dimensions and keyboard dimensions
-    DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
-    int screenWidth = displayMetrics.widthPixels;
-    int screenHeight = displayMetrics.heightPixels;
-    
-    // For overlay windows, we need to account for system UI constraints
-    // Get the actual usable area by checking the window manager's display metrics
-    WindowManager wm = getSystemService(WindowManager.class);
-    if (wm != null) {
-      android.graphics.Point size = new android.graphics.Point();
-      wm.getDefaultDisplay().getRealSize(size);
-      screenWidth = size.x;
-      screenHeight = size.y;
-      android.util.Log.d("FloatingKeyboard", "Real screen size: " + screenWidth + "x" + screenHeight + " vs metrics: " + displayMetrics.widthPixels + "x" + displayMetrics.heightPixels);
-    }
+
+    // Use the full combined display bounds (both screens when spanned, e.g. a
+    // Surface Duo) so the keyboard can sit / be dragged anywhere across them
+    // rather than clipping to one half. (bd-6aacf2)
+    android.graphics.Point fullSize = getFullDisplaySize();
+    int screenWidth = fullSize.x;
+    int screenHeight = fullSize.y;
+    Logs.log("FloatingKeyboard2", "clamp using full display " + screenWidth + "x" + screenHeight);
     int keyboardWidth = _floatingContainer.getWidth();
     int keyboardHeight = _floatingContainer.getHeight();
     
@@ -1627,10 +1643,13 @@ public class FloatingKeyboard2 extends InputMethodService
           android.util.Log.d("FloatingKeyboard", "Resize drag - deltaX: " + deltaX + ", deltaY: " + deltaY);
           android.util.Log.d("FloatingKeyboard", "Initial dimensions: " + initialWidth + "x" + initialHeight);
           
-          // Get screen dimensions for calculations
+          // Single-display metrics drive the minimum size; the full combined
+          // display drives the maximum so the keyboard can be resized to span
+          // both screens on a spanned device (e.g. Surface Duo). (bd-6aacf2)
           DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
           int screenWidth = displayMetrics.widthPixels;
           int screenHeight = displayMetrics.heightPixels;
+          android.graphics.Point fullSize = getFullDisplaySize();
           
           // Calculate new pixel-based dimensions
           int newKeyboardWidth = Math.round(initialWidth + deltaX);
@@ -1640,9 +1659,9 @@ public class FloatingKeyboard2 extends InputMethodService
           
           // Apply constraints
           int minKeyboardWidth = Math.round(screenWidth * 0.3f);
-          int maxKeyboardWidth = screenWidth;
+          int maxKeyboardWidth = fullSize.x;
           int minKeyboardHeight = Math.round(screenHeight * 0.1f);
-          int maxKeyboardHeight = Math.round(screenHeight * 0.6f);
+          int maxKeyboardHeight = Math.round(fullSize.y * 0.6f);
           
           newKeyboardWidth = Math.max(minKeyboardWidth, Math.min(newKeyboardWidth, maxKeyboardWidth));
           newKeyboardHeight = Math.max(minKeyboardHeight, Math.min(newKeyboardHeight, maxKeyboardHeight));
