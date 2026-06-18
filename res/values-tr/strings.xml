@@ -56,10 +56,15 @@
     <!-- <string name="pref_number_entry_layout_normal">Use the main layout</string> -->
     <string name="pref_category_style">Tarz</string>
     <string name="pref_margin_bottom_title">Alt boşluk</string>
+    <!-- <string name="pref_margin_top_title">Margin top</string> -->
     <string name="pref_keyboard_height_title">Klavye yüksekliği</string>
     <string name="pref_horizontal_margin_title">Yatay boşluk</string>
     <string name="pref_character_size_title">Etiket boyutu</string>
     <string name="pref_character_size_summary">Klavye üzerindeki karakterlerin boyutu (%.2fx)</string>
+    <!-- <string name="pref_main_label_size_title">Main label size</string> -->
+    <!-- <string name="pref_main_label_size_summary">Size of central characters on keys (%.2fx)</string> -->
+    <!-- <string name="pref_sub_label_size_title">Corner label size</string> -->
+    <!-- <string name="pref_sub_label_size_summary">Size of corner/edge characters on keys (%.2fx)</string> -->
     <string name="pref_theme">Tema</string>
     <string name="pref_theme_e_system">Sistem Temasını Kullan</string>
     <string name="pref_theme_e_dark">Koyu</string>
@@ -82,6 +87,10 @@
     <string name="pref_swipe_dist_e_very_far">Çok uzun</string>
     <string name="pref_key_horizontal_space">Tuşlar arasındaki yatay boşluk</string>
     <string name="pref_key_vertical_space">Tuşlar arasındaki dikey boşluk</string>
+    <!-- <string name="pref_use_pixel_margins_title">Use pixel-based key spacing</string> -->
+    <!-- <string name="pref_use_pixel_margins_summary">Switch to absolute pixel spacing instead of percentage-based</string> -->
+    <!-- <string name="pref_key_horizontal_space_px">Horizontal spacing (pixels)</string> -->
+    <!-- <string name="pref_key_vertical_space_px">Vertical spacing (pixels)</string> -->
     <string name="pref_border_config_title">Çerçeveyi özelleştir</string>
     <string name="pref_border_width_title">Çerçeve kalınlığı</string>
     <string name="pref_corners_radius_title">Kenar yumuşaklığı</string>
@@ -108,6 +117,7 @@
     <string name="key_descr_change_method">Klavye değiştir</string>
     <string name="key_descr_voice_typing">Sesle yazma</string>
     <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
+    <!-- <string name="key_descr_toggle_persistence">Toggle keyboard persistence</string> -->
     <string name="key_descr_copy">Kopyala</string>
     <string name="key_descr_paste">Yapıştır</string>
     <string name="key_descr_cut">Kes</string>
@@ -138,4 +148,15 @@
     <string name="clipboard_remove_confirm">Bu panodan silinsin mi?</string>
     <string name="clipboard_remove_confirmed">Evet</string>
     <!-- <string name="toast_no_voice_input">No voice typing app installed</string> -->
+    <!-- <string name="pref_font_title">Font</string> -->
+    <!-- <string name="pref_font_summary">Select the font used for keyboard labels</string> -->
+    <!-- <string name="pref_font_e_default">Default</string> -->
+    <!-- <string name="pref_font_e_fira_code">Fira Code Nerd Font</string> -->
+    <!-- <string name="pref_keyboard_disabled_opacity">Keyboard opacity when disabled</string> -->
+    <!-- <string name="pref_show_drag_handle">Show drag handle</string> -->
+    <!-- <string name="pref_show_drag_handle_summary">Display the drag handle for moving the floating keyboard</string> -->
+    <!-- <string name="pref_show_resize_handle">Show resize handle</string> -->
+    <!-- <string name="pref_show_resize_handle_summary">Display the resize handle for changing keyboard dimensions</string> -->
+    <!-- <string name="pref_show_passthrough_handle">Show passthrough handle</string> -->
+    <!-- <string name="pref_show_passthrough_handle_summary">Display the passthrough handle for disabling keyboard touches</string> -->
 </resources>

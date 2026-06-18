@@ -56,10 +56,15 @@
     <!-- <string name="pref_number_entry_layout_normal">Use the main layout</string> -->
     <string name="pref_category_style">스타일</string>
     <string name="pref_margin_bottom_title">아래 넓이</string>
+    <!-- <string name="pref_margin_top_title">Margin top</string> -->
     <string name="pref_keyboard_height_title">키보드 높이</string>
     <string name="pref_horizontal_margin_title">양 옆 넓이</string>
     <string name="pref_character_size_title">폰트 크기</string>
     <string name="pref_character_size_summary">키보드의 표시되는 폰트 크기 (%.2fx)</string>
+    <!-- <string name="pref_main_label_size_title">Main label size</string> -->
+    <!-- <string name="pref_main_label_size_summary">Size of central characters on keys (%.2fx)</string> -->
+    <!-- <string name="pref_sub_label_size_title">Corner label size</string> -->
+    <!-- <string name="pref_sub_label_size_summary">Size of corner/edge characters on keys (%.2fx)</string> -->
     <string name="pref_theme">테마</string>
     <string name="pref_theme_e_system">시스템 테마</string>
     <string name="pref_theme_e_dark">다크</string>
@@ -82,6 +87,10 @@
     <string name="pref_swipe_dist_e_very_far">매우 넓음</string>
     <string name="pref_key_horizontal_space">키보드 양 옆 간격</string>
     <string name="pref_key_vertical_space">키보드 세로 간격</string>
+    <!-- <string name="pref_use_pixel_margins_title">Use pixel-based key spacing</string> -->
+    <!-- <string name="pref_use_pixel_margins_summary">Switch to absolute pixel spacing instead of percentage-based</string> -->
+    <!-- <string name="pref_key_horizontal_space_px">Horizontal spacing (pixels)</string> -->
+    <!-- <string name="pref_key_vertical_space_px">Vertical spacing (pixels)</string> -->
     <string name="pref_border_config_title">경계선 사용자 정의</string>
     <string name="pref_border_width_title">경계선 너비</string>
     <string name="pref_corners_radius_title">모서리 반지름</string>
@@ -108,6 +117,7 @@
     <string name="key_descr_change_method">키보드 전환</string>
     <string name="key_descr_voice_typing">음성 입력</string>
     <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
+    <!-- <string name="key_descr_toggle_persistence">Toggle keyboard persistence</string> -->
     <string name="key_descr_copy">복사</string>
     <string name="key_descr_paste">붙여넣기</string>
     <string name="key_descr_cut">자르기</string>
@@ -138,4 +148,15 @@
     <string name="clipboard_remove_confirm">이 클립보드를 제거하시겠습니까?</string>
     <string name="clipboard_remove_confirmed">예</string>
     <!-- <string name="toast_no_voice_input">No voice typing app installed</string> -->
+    <!-- <string name="pref_font_title">Font</string> -->
+    <!-- <string name="pref_font_summary">Select the font used for keyboard labels</string> -->
+    <!-- <string name="pref_font_e_default">Default</string> -->
+    <!-- <string name="pref_font_e_fira_code">Fira Code Nerd Font</string> -->
+    <!-- <string name="pref_keyboard_disabled_opacity">Keyboard opacity when disabled</string> -->
+    <!-- <string name="pref_show_drag_handle">Show drag handle</string> -->
+    <!-- <string name="pref_show_drag_handle_summary">Display the drag handle for moving the floating keyboard</string> -->
+    <!-- <string name="pref_show_resize_handle">Show resize handle</string> -->
+    <!-- <string name="pref_show_resize_handle_summary">Display the resize handle for changing keyboard dimensions</string> -->
+    <!-- <string name="pref_show_passthrough_handle">Show passthrough handle</string> -->
+    <!-- <string name="pref_show_passthrough_handle_summary">Display the passthrough handle for disabling keyboard touches</string> -->
 </resources>

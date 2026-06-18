@@ -17,7 +17,7 @@ android {
     applicationId "com.harryaskham.omni"
     minSdk 21
     targetSdkVersion 35
-    versionCode 50
+    versionCode 51
     versionName "1.32.1"
   }
 
@@ -92,6 +92,14 @@ android {
   lintOptions {
     // Translation are already checked by 'syncTranslations'
     disable 'MissingTranslation'
+  }
+
+  testOptions {
+    unitTests {
+      // Plain JVM unit tests call android.util.Log etc.; return defaults instead
+      // of throwing "not mocked" so the suite runs without Robolectric.
+      returnDefaultValues = true
+    }
   }
 }
 

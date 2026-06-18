@@ -56,10 +56,15 @@
     <string name="pref_number_entry_layout_normal">Основная раскладка</string>
     <string name="pref_category_style">Стиль</string>
     <string name="pref_margin_bottom_title">Нижняя граница поля</string>
+    <!-- <string name="pref_margin_top_title">Margin top</string> -->
     <string name="pref_keyboard_height_title">Высота клавиатуры</string>
     <string name="pref_horizontal_margin_title">Горизонтальное поле</string>
     <string name="pref_character_size_title">Размер символов</string>
     <string name="pref_character_size_summary">Размер символов, отображаемых на клавиатуре (%.2fx)</string>
+    <!-- <string name="pref_main_label_size_title">Main label size</string> -->
+    <!-- <string name="pref_main_label_size_summary">Size of central characters on keys (%.2fx)</string> -->
+    <!-- <string name="pref_sub_label_size_title">Corner label size</string> -->
+    <!-- <string name="pref_sub_label_size_summary">Size of corner/edge characters on keys (%.2fx)</string> -->
     <string name="pref_theme">Тема</string>
     <string name="pref_theme_e_system">Системная</string>
     <string name="pref_theme_e_dark">Темная</string>
@@ -82,6 +87,10 @@
     <string name="pref_swipe_dist_e_very_far">Очень длинная</string>
     <string name="pref_key_horizontal_space">Горизонтальное расстояние между клавишами</string>
     <string name="pref_key_vertical_space">Расстояние по вертикали между клавишами</string>
+    <!-- <string name="pref_use_pixel_margins_title">Use pixel-based key spacing</string> -->
+    <!-- <string name="pref_use_pixel_margins_summary">Switch to absolute pixel spacing instead of percentage-based</string> -->
+    <!-- <string name="pref_key_horizontal_space_px">Horizontal spacing (pixels)</string> -->
+    <!-- <string name="pref_key_vertical_space_px">Vertical spacing (pixels)</string> -->
     <string name="pref_border_config_title">Настройка рамки</string>
     <string name="pref_border_width_title">Ширина рамки</string>
     <string name="pref_corners_radius_title">Радиус скругления</string>
@@ -108,6 +117,7 @@
     <string name="key_descr_change_method">Переключение клавиатуры</string>
     <string name="key_descr_voice_typing">Голосовой ввод</string>
     <!-- <string name="key_descr_toggle_floating">Toggle floating keyboard</string> -->
+    <!-- <string name="key_descr_toggle_persistence">Toggle keyboard persistence</string> -->
     <string name="key_descr_copy">Копировать</string>
     <string name="key_descr_paste">Вставить</string>
     <string name="key_descr_cut">Вырезать</string>
@@ -138,4 +148,15 @@
     <string name="clipboard_remove_confirm">Удалить этот буфер обмена?</string>
     <string name="clipboard_remove_confirmed">Да</string>
     <string name="toast_no_voice_input">Приложение для голосового ввода не установлено</string>
+    <!-- <string name="pref_font_title">Font</string> -->
+    <!-- <string name="pref_font_summary">Select the font used for keyboard labels</string> -->
+    <!-- <string name="pref_font_e_default">Default</string> -->
+    <!-- <string name="pref_font_e_fira_code">Fira Code Nerd Font</string> -->
+    <!-- <string name="pref_keyboard_disabled_opacity">Keyboard opacity when disabled</string> -->
+    <!-- <string name="pref_show_drag_handle">Show drag handle</string> -->
+    <!-- <string name="pref_show_drag_handle_summary">Display the drag handle for moving the floating keyboard</string> -->
+    <!-- <string name="pref_show_resize_handle">Show resize handle</string> -->
+    <!-- <string name="pref_show_resize_handle_summary">Display the resize handle for changing keyboard dimensions</string> -->
+    <!-- <string name="pref_show_passthrough_handle">Show passthrough handle</string> -->
+    <!-- <string name="pref_show_passthrough_handle_summary">Display the passthrough handle for disabling keyboard touches</string> -->
 </resources>

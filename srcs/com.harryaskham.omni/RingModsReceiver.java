@@ -50,10 +50,10 @@ public class RingModsReceiver extends BroadcastReceiver
   /** Optional extra naming the sending package, checked against the allowlist. */
   public static final String EXTRA_SENDER_PACKAGE = "sender_package";
 
-  /** Package-id prefixes allowed to inject. */
-  static final String[] ALLOWED_SENDER_PREFIXES = {
-    "com.harryaskham.",
-    "com.termux.",
+  /** Base package ids whose family (the exact id, or id + ".sub") may inject. */
+  static final String[] ALLOWED_SENDER_PACKAGES = {
+    "com.harryaskham",
+    "com.termux",
   };
 
   /**
@@ -85,8 +85,8 @@ public class RingModsReceiver extends BroadcastReceiver
   {
     if (pkg == null || pkg.isEmpty())
       return true;
-    for (String prefix : ALLOWED_SENDER_PREFIXES)
-      if (pkg.startsWith(prefix))
+    for (String base : ALLOWED_SENDER_PACKAGES)
+      if (pkg.equals(base) || pkg.startsWith(base + "."))
         return true;
     return false;
   }
