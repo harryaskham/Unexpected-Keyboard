@@ -1,4 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <style name="appTheme" parent="@android:style/Theme.Material.Light"/>
+  <!-- bd-7dfc8a: Nord brand palette for the settings/app UI (matches nod-term and
+       pulse-server). This is the v21+ variant that actually applies on modern
+       devices; the res/values/ copy is shadowed by this qualifier, which is why
+       earlier the restyle had no visible effect. Forced dark like the sibling
+       apps so the settings UI is consistent regardless of system light/dark.
+       The keyboard KEY theme is separate (the `theme` preference + Theme.java)
+       and is intentionally left untouched. -->
+  <style name="appTheme" parent="@android:style/Theme.Material">
+    <item name="android:windowBackground">#FF2E3440</item>
+    <item name="android:colorBackground">#FF2E3440</item>
+    <item name="android:colorPrimary">#FF3B4252</item>
+    <item name="android:colorPrimaryDark">#FF2E3440</item>
+    <item name="android:colorAccent">#FF88C0D0</item>
+    <item name="android:statusBarColor">#FF2E3440</item>
+    <item name="android:navigationBarColor">#FF2E3440</item>
+    <item name="android:textColorPrimary">#FFECEFF4</item>
+    <item name="android:textColorSecondary">#FFA9B4C8</item>
+  </style>
 </resources>

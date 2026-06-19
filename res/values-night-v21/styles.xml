@@ -1,4 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <style name="appTheme" parent="@android:style/Theme.Material"/>
+  <!-- bd-7dfc8a: Nord brand palette (dark), same as the day v21 variant so the
+       settings/app UI is always Nord like nod-term/pulse-server. Keyboard KEY
+       theme is separate and untouched. -->
+  <style name="appTheme" parent="@android:style/Theme.Material">
+    <item name="android:windowBackground">#FF2E3440</item>
+    <item name="android:colorBackground">#FF2E3440</item>
+    <item name="android:colorPrimary">#FF3B4252</item>
+    <item name="android:colorPrimaryDark">#FF2E3440</item>
+    <item name="android:colorAccent">#FF88C0D0</item>
+    <item name="android:statusBarColor">#FF2E3440</item>
+    <item name="android:navigationBarColor">#FF2E3440</item>
+    <item name="android:textColorPrimary">#FFECEFF4</item>
+    <item name="android:textColorSecondary">#FFA9B4C8</item>
+  </style>
 </resources>
