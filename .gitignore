@@ -12,3 +12,6 @@
 /_build
 /release
 /android-sdk
+
+# Wear OS module build output (bd-783380)
+wear/build/
