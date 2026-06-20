@@ -13,6 +13,10 @@ public class RingModsReceiverTest
     assertTrue(RingModsReceiver.isAllowedSenderPackage("com.harryaskham.omni"));
     assertTrue(RingModsReceiver.isAllowedSenderPackage("com.harryaskham.ringmods"));
     assertTrue(RingModsReceiver.isAllowedSenderPackage("com.harryaskham.nodterm"));
+    // omni-cli's canonical Android-transport sender_package (omni-cli bd-17026f);
+    // omni-cli is a host Rust binary so it sets this EXTRA explicitly. Lock it so
+    // the cross-project INJECT contract can't silently regress.
+    assertTrue(RingModsReceiver.isAllowedSenderPackage("com.harryaskham.omnicli"));
     assertTrue(RingModsReceiver.isAllowedSenderPackage("com.termux"));
     assertTrue(RingModsReceiver.isAllowedSenderPackage("com.termux.api"));
   }
