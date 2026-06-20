@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  bd-783380: Omni Wear OS manifest. Declares the watch form factor and the same
+  docked IME (Keyboard2) + command server (RingModsReceiver) as the phone build,
+  reusing the shared engine classes. Phone-only surfaces are intentionally
+  dropped here: FloatingKeyboard2 and the SYSTEM_ALERT_WINDOW / media-storage
+  permissions do not apply on a watch.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:hardwareAccelerated="false">
+  <uses-feature android:name="android.hardware.type.watch" android:required="true"/>
+
+  <uses-permission android:name="android.permission.VIBRATE"/>
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
+  <application android:label="@string/app_name" android:allowBackup="true" android:icon="@mipmap/ic_launcher" android:hardwareAccelerated="false">
+    <service android:name="com.harryaskham.omni.Keyboard2" android:label="@string/app_name" android:permission="android.permission.BIND_INPUT_METHOD" android:exported="true" android:directBootAware="true">
+      <intent-filter>
+        <action android:name="android.view.InputMethod"/>
+      </intent-filter>
+      <meta-data android:name="android.view.im" android:resource="@xml/method"/>
+    </service>
+
+    <!-- Omni injection command server: receives com.harryaskham.omni.INJECT (and
+         the legacy com.ringmods.HID_EVENT) so omni-cli can drive the focused
+         field on-watch. Registered at runtime by the IME, same as on phone. -->
+
+    <activity android:name="com.harryaskham.omni.SettingsActivity" android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:theme="@style/settingsTheme" android:exported="true" android:directBootAware="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+      </intent-filter>
+    </activity>
+
+    <activity android:name="com.harryaskham.omni.LauncherActivity" android:icon="@mipmap/ic_launcher" android:theme="@style/appTheme" android:exported="true" android:directBootAware="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+    </activity>
+
+    <activity android:name="com.harryaskham.omni.LogViewActivity" android:label="Omni logs" android:theme="@style/settingsTheme" android:exported="false" android:directBootAware="true"/>
+  </application>
+
+  <queries>
+    <intent>
+      <action android:name="android.view.InputMethod" />
+    </intent>
+  </queries>
+</manifest>

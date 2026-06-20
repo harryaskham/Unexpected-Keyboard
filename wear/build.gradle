@@ -1,0 +1,124 @@
+// bd-783380: Omni Wear OS app module.
+//
+// A standalone Wear OS build of the Omni keyboard that REUSES the phone app's
+// engine sources, resources and assets (no fork of the engine) and ships the
+// same command server (RingModsReceiver) so omni-cli can inject on-watch. This
+// is an additive module: the phone app module (the repo root) is untouched, so
+// its assembleDebug/bundleRelease tasks and existing CI keep working. The shared
+// engine's generated sources (ComposeKeyData.java, layouts.xml, emojis.txt,
+// special_font.ttf) are committed, so this module consumes them directly; the
+// raw layout XML copy tasks below mirror the phone module so the build is
+// self-contained.
+plugins {
+  id 'com.android.application'
+}
+
+dependencies {
+  implementation "androidx.window:window-java:1.3.0"
+  implementation "androidx.core:core:1.16.0"
+  testImplementation "junit:junit:4.13.2"
+  testImplementation "org.mockito:mockito-core:4.6.1"
+}
+
+android {
+  // Same namespace as the phone app so the shared engine's R / BuildConfig
+  // imports (com.harryaskham.omni.*) resolve; a distinct applicationId so the
+  // watch build installs alongside the phone build.
+  namespace 'com.harryaskham.omni'
+  compileSdk 35
+
+  defaultConfig {
+    applicationId "com.harryaskham.omni.wear"
+    minSdk 26
+    targetSdkVersion 35
+    versionCode 1
+    versionName "0.1.0-wear"
+  }
+
+  sourceSets {
+    main {
+      manifest.srcFile 'src/main/AndroidManifest.xml'
+      // Reuse the phone engine sources; add wear-only sources under wear/srcs.
+      java.srcDirs = ['../srcs/com.harryaskham.omni', 'srcs']
+      // Reuse the phone resources + assets; wear overrides go under wear/res.
+      res.srcDirs = ['res', '../res', 'build/generated-resources']
+      assets.srcDirs = ['../assets']
+    }
+  }
+
+  signingConfigs {
+    debug {
+      storeFile(System.env.DEBUG_KEYSTORE ? file(System.env.DEBUG_KEYSTORE) : file("../debug.keystore"))
+      storePassword(System.env.DEBUG_KEYSTORE_PASSWORD ? "$System.env.DEBUG_KEYSTORE_PASSWORD" : "debug0")
+      keyAlias(System.env.DEBUG_KEY_ALIAS ? "$System.env.DEBUG_KEY_ALIAS" : "debug")
+      keyPassword(System.env.DEBUG_KEY_PASSWORD ? "$System.env.DEBUG_KEY_PASSWORD" : "debug0")
+    }
+    release {
+      if (System.env.RELEASE_KEYSTORE) {
+        storeFile file(System.env.RELEASE_KEYSTORE)
+        storePassword "$System.env.RELEASE_KEYSTORE_PASSWORD"
+        keyAlias "$System.env.RELEASE_KEY_ALIAS"
+        keyPassword "$System.env.RELEASE_KEY_PASSWORD"
+      }
+    }
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled true
+      shrinkResources true
+      debuggable false
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+      resValue "string", "app_name", "@string/app_name_release"
+      signingConfig signingConfigs.release
+    }
+    debug {
+      minifyEnabled false
+      shrinkResources false
+      debuggable true
+      applicationIdSuffix ".debug"
+      resValue "string", "app_name", "@string/app_name_debug"
+      resValue "bool", "debug_logs", "true"
+      signingConfig signingConfigs.debug
+    }
+  }
+
+  android.applicationVariants.all { variant ->
+    variant.outputs.all {
+      outputFileName = "${applicationId}.apk"
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_1_8
+    targetCompatibility JavaVersion.VERSION_1_8
+  }
+
+  lintOptions {
+    disable 'MissingTranslation'
+  }
+
+  testOptions {
+    unitTests {
+      returnDefaultValues = true
+    }
+  }
+}
+
+// Mirror the phone module's raw-layout copy steps so this module is
+// self-contained (the engine resolves custom + built-in layouts from these).
+tasks.register('copyRawQwertyUS', Copy) {
+  from "../srcs/layouts/latn_qwerty_us.xml"
+  into "build/generated-resources/raw"
+}
+
+tasks.register('copyLayoutDefinitions', Copy) {
+  from "../srcs/layouts"
+  include "*.xml"
+  into "build/generated-resources/xml"
+}
+
+tasks.named("preBuild") {
+  dependsOn += "copyRawQwertyUS"
+  dependsOn += "copyLayoutDefinitions"
+}

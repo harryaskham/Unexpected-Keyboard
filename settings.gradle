@@ -15,3 +15,8 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Unexpected-Keyboard"
+
+// bd-783380: additive Wear OS app module. Reuses the committed engine sources +
+// resources from the phone app; adds only :wear:* tasks, leaving the phone
+// module's tasks (assembleDebug/bundleRelease) and all CI untouched.
+include ':wear'
