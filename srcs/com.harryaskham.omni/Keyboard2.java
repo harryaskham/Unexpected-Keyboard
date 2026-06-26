@@ -71,6 +71,16 @@ public class Keyboard2 extends InputMethodService
       layout = _config.layouts.get(layout_i);
     if (layout == null)
       layout = _localeTextLayout;
+    // bd-783380: on a watch the watch-tuned default lives in _localeTextLayout
+    // (set by refreshSubtypeImm via the FEATURE_WATCH branch), but the resolved
+    // config slot is the dense phone QWERTY (the subtype default), so it bypasses
+    // the null-fallback above and the watch layout never renders. When the
+    // resolved layout is that phone default, prefer the watch layout. An explicit
+    // user choice of any other layout has a different name and still wins; phones
+    // never report FEATURE_WATCH so this is a no-op there.
+    if (layout != null && layout != _localeTextLayout && _localeTextLayout != null
+        && "QWERTY (US)".equals(layout.name) && isWatchDevice())
+      layout = _localeTextLayout;
     return layout;
   }
 
