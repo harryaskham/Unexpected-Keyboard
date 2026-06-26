@@ -54,6 +54,13 @@ public class LauncherActivity extends Activity implements Handler.Callback
   }
   
   private void checkStoragePermissions() {
+    // bd-783380: the external-directory-layout-loading feature is phone-oriented
+    // (reads user-managed /storage/emulated/0/shared/.../layouts). On a watch
+    // there is no such directory and the all-files-access dialog / MANAGE_ALL_
+    // FILES_ACCESS intent has no good Wear handler, which hangs/ANRs the launcher
+    // entry screen. Skip the whole storage-permission flow on watches.
+    if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH))
+      return;
     if (VERSION.SDK_INT >= 30) { // Android 11+
       if (!Environment.isExternalStorageManager()) {
         showStoragePermissionDialog();

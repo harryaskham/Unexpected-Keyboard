@@ -159,8 +159,15 @@ public final class Config
       android.util.Log.d("Config", "Loaded portrait floating dimensions: " + floatingKeyboardWidthPercent + "% x " + floatingKeyboardHeightPercent + "%");
     }
     layouts = LayoutsPreference.load_from_preferences(res, _prefs);
-    // Auto-load layouts from external directory if configured
-    if (_prefs.getBoolean("auto_load_external_layouts", true))
+    // Auto-load layouts from external directory if configured. bd-783380: skip on
+    // watches — Wear has no user-managed /storage layouts directory, and the
+    // synchronous directory scan (plus its storage-permission requirement) blocks
+    // the main thread / ANRs there. Detect the watch form factor via the UI mode
+    // (Config has Resources but no PackageManager).
+    boolean is_watch =
+        (res.getConfiguration().uiMode & Configuration.UI_MODE_TYPE_MASK)
+        == Configuration.UI_MODE_TYPE_WATCH;
+    if (!is_watch && _prefs.getBoolean("auto_load_external_layouts", true))
     {
       String extDir = _prefs.getString("external_layouts_directory",
           "/storage/emulated/0/shared/unexpected_keyboard/layouts");
