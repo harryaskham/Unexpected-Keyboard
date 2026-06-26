@@ -72,6 +72,7 @@
     <item>latn_qwerty_tr</item>
     <item>latn_qwerty_uz</item>
     <item>latn_qwerty_vi</item>
+    <item>latn_qwerty_watch</item>
     <item>latn_qwertz</item>
     <item>latn_qwertz_cz</item>
     <item>latn_qwertz_cz_diacritics</item>
@@ -159,6 +160,7 @@
     <item>QWERTY (Türkçe)</item>
     <item>QWERTY (Oʻzbekcha)</item>
     <item>QWERTY (Vietnamese)</item>
+    <item>QWERTY Watch</item>
     <item>QWERTZ</item>
     <item>QWERTZ (Czech)</item>
     <item>QWERTZ (Czech with diacritic keys)</item>
@@ -246,6 +248,7 @@
     <item>@xml/latn_qwerty_tr</item>
     <item>@xml/latn_qwerty_uz</item>
     <item>@xml/latn_qwerty_vi</item>
+    <item>@xml/latn_qwerty_watch</item>
     <item>@xml/latn_qwertz</item>
     <item>@xml/latn_qwertz_cz</item>
     <item>@xml/latn_qwertz_cz_diacritics</item>

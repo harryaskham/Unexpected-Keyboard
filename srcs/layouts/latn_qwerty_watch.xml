@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- bd-783380: watch-tuned compact QWERTY for Omni on Wear OS / watchOS.
+
+A default, refine-from-here layout for small round watch screens. It folds the
+10-column phone QWERTY into 5 wider keys per row: each key's center (c) is paired
+with its qwerty-adjacent letter on an east swipe (e), preserving the normal
+left-to-right QWERTY reading order (q w / e r / t y / u i / o p, etc.). That
+halves the columns for much larger touch targets while keeping every letter one
+short swipe-right away — leaning into the corner-swipe engine rather than fighting
+the tiny screen. Numbers/symbols stay on the numeric/symbol layers to keep the
+watch face uncluttered; a few high-frequency punctuation marks live on corners.
+The Nord key theme is applied by the renderer and is unaffected by this layout.
+
+Shared XML: the same file is intended to serve Wear OS and (future) watchOS per
+docs/omni-wearos.md. Tune freely — this is the operator's starting point. -->
+<keyboard name="QWERTY Watch" script="latin">
+  <row>
+    <key c="q" e="w" ne="1"/>
+    <key c="e" e="r" ne="2"/>
+    <key c="t" e="y" ne="3"/>
+    <key c="u" e="i" ne="4"/>
+    <key c="o" e="p" ne="5"/>
+  </row>
+  <row>
+    <key shift="0.5" c="a" e="s"/>
+    <key c="d" e="f"/>
+    <key c="g" e="h"/>
+    <key c="j" e="k"/>
+    <key c="l" se="'"/>
+  </row>
+  <row>
+    <key width="1.3" c="shift" ne="loc capslock"/>
+    <key c="z" e="x"/>
+    <key c="c" e="v"/>
+    <key c="b" e="n"/>
+    <key c="m" ne="." se=","/>
+    <key width="1.3" c="backspace" ne="delete"/>
+  </row>
+</keyboard>

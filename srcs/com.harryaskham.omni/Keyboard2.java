@@ -216,6 +216,7 @@ public class Keyboard2 extends InputMethodService
     InputMethodManager imm = get_imm();
     _config.shouldOfferVoiceTyping = true;
     KeyboardData default_layout = null;
+    String default_layout_name = null;
     _config.extra_keys_subtype = null;
     if (VERSION.SDK_INT >= 12)
     {
@@ -224,14 +225,35 @@ public class Keyboard2 extends InputMethodService
       if (subtype != null)
       {
         String s = subtype.getExtraValueOf("default_layout");
+        default_layout_name = s;
         if (s != null)
           default_layout = LayoutsPreference.layout_of_string(getResources(), s);
         refreshAccentsOption(imm, enabled_subtypes);
       }
     }
+    // bd-783380: on a watch form factor, default to the compact watch-tuned
+    // QWERTY instead of the dense 10-column phone QWERTY, but only for the
+    // generic English / unrecognized-locale case (latn_qwerty_us / no subtype
+    // default) so non-latin locales keep their script. The operator can still
+    // pick any layout in settings; this only changes the out-of-box default.
+    if (isWatchDevice()
+        && (default_layout_name == null || "latn_qwerty_us".equals(default_layout_name)))
+      default_layout = loadLayout(R.xml.latn_qwerty_watch);
     if (default_layout == null)
       default_layout = loadLayout(R.xml.latn_qwerty_us);
     _localeTextLayout = default_layout;
+  }
+
+  /** bd-783380: true on Wear OS / watch form factors, used to pick a watch-tuned
+   * default keyboard layout. The phone build never reports this feature. */
+  private boolean isWatchDevice()
+  {
+    try {
+      return getPackageManager()
+          .hasSystemFeature(android.content.pm.PackageManager.FEATURE_WATCH);
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   private String actionLabel_of_imeAction(int action)
