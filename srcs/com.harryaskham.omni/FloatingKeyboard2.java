@@ -86,6 +86,9 @@ public class FloatingKeyboard2 extends InputMethodService
   
   // Floating keyboard specific
   private WindowManager _windowManager;
+  // bd-6aacf2: held so the display-aware overlay window context isn't GC'd while
+  // the floating keyboard window is shown.
+  private android.content.Context _overlayWindowContext;
   private boolean _floatingKeyboardActive = false;
   private View _floatingKeyboardView;
   private WindowManager.LayoutParams _floatingLayoutParams;
@@ -176,7 +179,7 @@ public class FloatingKeyboard2 extends InputMethodService
     ClipboardHistoryService.on_startup(this, _keyeventhandler);
     _foldStateTracker.setChangedCallback(() -> { refresh_config(); });
 
-    _windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+    _windowManager = createOverlayWindowManager();
 
     // Register Omni injection command server (gated by settings)
     instance = this;
@@ -930,9 +933,53 @@ public class FloatingKeyboard2 extends InputMethodService
    * positioned anywhere across both screens instead of clipping to one half.
    * Falls back to the single real display on API < 30. (bd-6aacf2)
    */
+  /**
+   * bd-6aacf2 (Harry's choice: "make it span both screens"): WindowManager used to
+   * add the floating overlay. On API 30+ this is a display-aware window context's
+   * WindowManager, so on a spanned multi-display device (e.g. a Surface Duo with
+   * the foreground app spanned) the overlay is attached to the combined logical
+   * display and can actually cross the hinge. A plain TYPE_APPLICATION_OVERLAY
+   * added via the bare service WindowManager is pinned to one display and gets
+   * clipped at the hinge no matter how the bounds are clamped (the v55 fix). On a
+   * single-display phone the window context targets the default display, identical
+   * to the service WindowManager, so behaviour is unchanged there. Falls back to
+   * the service WindowManager on API < 30 or on any error.
+   */
+  private WindowManager createOverlayWindowManager() {
+    WindowManager fallback = (WindowManager) getSystemService(WINDOW_SERVICE);
+    if (android.os.Build.VERSION.SDK_INT < 30)
+      return fallback;
+    try {
+      android.hardware.display.DisplayManager dm =
+          (android.hardware.display.DisplayManager) getSystemService(DISPLAY_SERVICE);
+      android.view.Display display = (dm != null)
+          ? dm.getDisplay(android.view.Display.DEFAULT_DISPLAY) : null;
+      if (display == null)
+        return fallback;
+      _overlayWindowContext = createDisplayContext(display)
+          .createWindowContext(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, null);
+      WindowManager wm =
+          (WindowManager) _overlayWindowContext.getSystemService(WINDOW_SERVICE);
+      if (wm == null)
+        return fallback;
+      try {
+        android.graphics.Rect b = wm.getMaximumWindowMetrics().getBounds();
+        Logs.log("FloatingKeyboard2", "overlay window-context WM ready, max bounds "
+            + b.width() + "x" + b.height());
+      } catch (Throwable ignore) {}
+      return wm;
+    } catch (Throwable t) {
+      Logs.log("FloatingKeyboard2", "window-context WM unavailable, using service WM: " + t);
+      return fallback;
+    }
+  }
+
   private android.graphics.Point getFullDisplaySize() {
     android.graphics.Point size = new android.graphics.Point();
-    WindowManager wm = getSystemService(WindowManager.class);
+    // bd-6aacf2: use the display-aware overlay WindowManager so getMaximumWindowMetrics
+    // reports the spanned (combined) bounds on a multi-display device, not one half.
+    WindowManager wm = (_windowManager != null) ? _windowManager
+        : getSystemService(WindowManager.class);
     if (wm == null) {
       DisplayMetrics dm = getResources().getDisplayMetrics();
       size.set(dm.widthPixels, dm.heightPixels);
