@@ -128,6 +128,21 @@ public class LauncherActivity extends Activity implements Handler.Callback
   }
 
   @Override
+  public void onStop()
+  {
+    // bd-02d3ad: halt the demo-animation loop when the launcher isn't visible.
+    // handleMessage re-arms itself every 3s, so without this the launcher_anim_*
+    // drawables keep restarting in the background forever — pegging CPU (~51% on
+    // slow emulators, wasted battery on-device) and starving headless IME
+    // validation. onStart re-arms the loop when the launcher returns to front.
+    _handler.removeMessages(0);
+    if (_animations != null)
+      for (Animatable anim : _animations)
+        try { anim.stop(); } catch (Exception e) {}
+    super.onStop();
+  }
+
+  @Override
   public final boolean onCreateOptionsMenu(Menu menu)
   {
     getMenuInflater().inflate(R.menu.launcher_menu, menu);
