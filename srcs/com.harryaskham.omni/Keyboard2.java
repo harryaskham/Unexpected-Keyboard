@@ -71,15 +71,12 @@ public class Keyboard2 extends InputMethodService
       layout = _config.layouts.get(layout_i);
     if (layout == null)
       layout = _localeTextLayout;
-    // bd-783380: on a watch the watch-tuned default lives in _localeTextLayout
-    // (set by refreshSubtypeImm via the FEATURE_WATCH branch), but the resolved
-    // config slot is the dense phone QWERTY (the subtype default), so it bypasses
-    // the null-fallback above and the watch layout never renders. When the
-    // resolved layout is that phone default, prefer the watch layout. An explicit
-    // user choice of any other layout has a different name and still wins; phones
-    // never report FEATURE_WATCH so this is a no-op there.
+    // bd-783380: on a watch, prefer the watch locale layout (held in
+    // _localeTextLayout) over a resolved phone-default config slot. Decision is
+    // the unit-tested preferWatchLayout helper; explicit user layouts (any other
+    // display name) still win, and phones never report FEATURE_WATCH.
     if (layout != null && layout != _localeTextLayout && _localeTextLayout != null
-        && "QWERTY (US)".equals(layout.name) && isWatchDevice())
+        && preferWatchLayout(isWatchDevice(), layout.name))
       layout = _localeTextLayout;
     return layout;
   }
@@ -225,7 +222,6 @@ public class Keyboard2 extends InputMethodService
   {
     InputMethodManager imm = get_imm();
     _config.shouldOfferVoiceTyping = true;
-    KeyboardData default_layout = null;
     String default_layout_name = null;
     _config.extra_keys_subtype = null;
     if (VERSION.SDK_INT >= 12)
@@ -234,24 +230,20 @@ public class Keyboard2 extends InputMethodService
       InputMethodSubtype subtype = defaultSubtypes(imm, enabled_subtypes);
       if (subtype != null)
       {
-        String s = subtype.getExtraValueOf("default_layout");
-        default_layout_name = s;
-        if (s != null)
-          default_layout = LayoutsPreference.layout_of_string(getResources(), s);
+        default_layout_name = subtype.getExtraValueOf("default_layout");
         refreshAccentsOption(imm, enabled_subtypes);
       }
     }
-    // bd-783380: on a watch form factor, default to the compact watch-tuned
-    // QWERTY instead of the dense 10-column phone QWERTY, but only for the
-    // generic English / unrecognized-locale case (latn_qwerty_us / no subtype
-    // default) so non-latin locales keep their script. The operator can still
-    // pick any layout in settings; this only changes the out-of-box default.
-    if (isWatchDevice()
-        && (default_layout_name == null || "latn_qwerty_us".equals(default_layout_name)))
-      default_layout = loadLayout(R.xml.latn_qwerty_watch);
-    if (default_layout == null)
-      default_layout = loadLayout(R.xml.latn_qwerty_us);
-    _localeTextLayout = default_layout;
+    // bd-783380: pure watch-aware locale-default decision (unit-tested via
+    // localeDefaultLayoutName). On a watch the generic phone QWERTY default
+    // becomes the compact watch layout; explicit non-phone subtypes are kept.
+    String localeLayoutName =
+        localeDefaultLayoutName(isWatchDevice(), default_layout_name);
+    KeyboardData ld =
+        LayoutsPreference.layout_of_string(getResources(), localeLayoutName);
+    if (ld == null)
+      ld = loadLayout(R.xml.latn_qwerty_us);
+    _localeTextLayout = ld;
   }
 
   /** bd-783380: true on Wear OS / watch form factors, used to pick a watch-tuned
@@ -264,6 +256,36 @@ public class Keyboard2 extends InputMethodService
     } catch (Exception e) {
       return false;
     }
+  }
+
+  // bd-783380: layout-name constants shared with the unit test so it can't drift
+  // from the runtime comparison. The subtype-default decision works in resource-
+  // name space (latn_*); the render-precedence decision works in the layout
+  // DISPLAY-name space (KeyboardData.name from <keyboard name=...>).
+  static final String LAYOUT_RES_PHONE_DEFAULT = "latn_qwerty_us";
+  static final String LAYOUT_RES_WATCH = "latn_qwerty_watch";
+  static final String LAYOUT_DISPLAY_PHONE_DEFAULT = "QWERTY (US)";
+
+  /** bd-783380: pure decision for the locale/subtype default layout (resource
+   * name). On a watch, the generic English / unrecognized-locale default (no
+   * subtype default, or the phone latn_qwerty_us) becomes the compact watch
+   * layout; an explicit non-phone subtype default is preserved. Phones keep the
+   * subtype / phone default. Deterministic + side-effect-free for unit testing. */
+  static String localeDefaultLayoutName(boolean isWatch, String subtypeDefaultLayout)
+  {
+    if (isWatch && (subtypeDefaultLayout == null
+          || LAYOUT_RES_PHONE_DEFAULT.equals(subtypeDefaultLayout)))
+      return LAYOUT_RES_WATCH;
+    return (subtypeDefaultLayout != null) ? subtypeDefaultLayout : LAYOUT_RES_PHONE_DEFAULT;
+  }
+
+  /** bd-783380: pure render-precedence decision — whether to prefer the watch
+   * locale layout over the resolved config-slot layout. True only on a watch
+   * when the resolved layout is the phone default (by DISPLAY name); an explicit
+   * user layout (any other name) is preserved. */
+  static boolean preferWatchLayout(boolean isWatch, String resolvedConfigLayoutName)
+  {
+    return isWatch && LAYOUT_DISPLAY_PHONE_DEFAULT.equals(resolvedConfigLayoutName);
   }
 
   private String actionLabel_of_imeAction(int action)
