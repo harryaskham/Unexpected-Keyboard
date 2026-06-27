@@ -27,6 +27,21 @@ public class FoldStateTracker {
         return context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_SENSOR_HINGE_ANGLE);
     }
 
+    /** bd-6aacf2: bounds of a separating fold/hinge (e.g. the Surface Duo hinge
+     * gap) in window coordinates, or null when there is no separating hinge
+     * (normal single-screen phone, or a folded device). Used to keep the
+     * floating keyboard out of the physical hinge gap ("avoid the hinge"). */
+    public android.graphics.Rect getSeparatingHingeBounds() {
+        FoldingFeature ff = _foldingFeature;
+        if (ff == null) return null;
+        try {
+            if (!ff.isSeparating()) return null;
+            return ff.getBounds();
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     public boolean isUnfolded() {
         // FoldableFeature is only present when the device is unfolded. Otherwise, it's removed.
         // A weird decision from Google, but that's how it works:

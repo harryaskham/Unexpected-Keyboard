@@ -1018,7 +1018,42 @@ public class FloatingKeyboard2 extends InputMethodService
     // Calculate clamped position
     int clampedX = Math.max(0, Math.min(_floatingLayoutParams.x, screenWidth - keyboardWidth));
     int clampedY = Math.max(0, Math.min(_floatingLayoutParams.y, screenHeight - keyboardHeight));
-    
+
+    // bd-6aacf2: avoid the Surface Duo / foldable hinge. Only active when
+    // androidx.window reports a separating hinge (normal single-screen phones
+    // report none, so this is a no-op there). A floating keyboard narrow enough
+    // to fit on one side is snapped out of the hinge gap to the side it's mostly
+    // on; a keyboard wide enough to span both halves is left where it is (the
+    // hinge crossing is intentional). Geometry is logged for on-device tuning.
+    if (_foldStateTracker != null) {
+      android.graphics.Rect hinge = _foldStateTracker.getSeparatingHingeBounds();
+      if (hinge != null && hinge.width() < hinge.height()) { // vertical hinge (left/right)
+        int kbLeft = clampedX, kbRight = clampedX + keyboardWidth;
+        boolean overlapsGap = kbRight > hinge.left && kbLeft < hinge.right;
+        int leftRoom = hinge.left;
+        int rightRoom = screenWidth - hinge.right;
+        boolean fitsLeft = keyboardWidth <= leftRoom;
+        boolean fitsRight = keyboardWidth <= rightRoom;
+        if (overlapsGap && (fitsLeft || fitsRight)) {
+          int center = clampedX + keyboardWidth / 2;
+          int hingeCenter = (hinge.left + hinge.right) / 2;
+          int snappedX;
+          if (center <= hingeCenter && fitsLeft)
+            snappedX = Math.max(0, hinge.left - keyboardWidth);
+          else if (fitsRight)
+            snappedX = hinge.right;
+          else
+            snappedX = Math.max(0, hinge.left - keyboardWidth);
+          clampedX = Math.max(0, Math.min(snappedX, screenWidth - keyboardWidth));
+          Logs.log("FloatingKeyboard2", "hinge avoid: gap=" + hinge.left + ".." + hinge.right
+              + " kb=" + kbLeft + ".." + kbRight + " -> x=" + clampedX);
+        } else {
+          Logs.log("FloatingKeyboard2", "hinge present gap=" + hinge.left + ".." + hinge.right
+              + " kb=" + kbLeft + ".." + kbRight + " (spanning/clear, no snap)");
+        }
+      }
+    }
+
     // Only update if position changed
     if (clampedX != _floatingLayoutParams.x || clampedY != _floatingLayoutParams.y) {
       android.util.Log.d("FloatingKeyboard", "Clamping keyboard position from " + _floatingLayoutParams.x + "," + _floatingLayoutParams.y + " to " + clampedX + "," + clampedY);
