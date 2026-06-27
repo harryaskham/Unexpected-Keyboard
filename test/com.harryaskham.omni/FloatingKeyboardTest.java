@@ -8,6 +8,36 @@ public class FloatingKeyboardTest
   public FloatingKeyboardTest() {}
 
   @Test
+  public void testHingeAvoidance()
+  {
+    // bd-6aacf2: pure hinge-avoidance geometry. Duo-like spanned width 2784 with a
+    // vertical hinge gap [1350, 1434]; left room = 1350, right room = 1350.
+    int W = 2784, hL = 1350, hR = 1434;
+
+    // Narrow keyboard (600) sitting over the gap, centre left of the hinge → snaps
+    // out to the left (hingeLeft - width).
+    assertEquals("snap left when centre is left of hinge",
+        750, FloatingKeyboard2.hingeAvoidedX(1000, 600, W, hL, hR));
+    // Narrow keyboard over the gap, centre right of the hinge → snaps to the right
+    // edge of the gap (hingeRight).
+    assertEquals("snap right when centre is right of hinge",
+        1434, FloatingKeyboard2.hingeAvoidedX(1100, 600, W, hL, hR));
+    // Keyboard wide enough to span both halves (fits neither side) is left alone —
+    // the hinge crossing is intentional.
+    assertEquals("wide spanning keyboard is not snapped",
+        400, FloatingKeyboard2.hingeAvoidedX(400, 2000, W, hL, hR));
+    // Keyboard clear of the gap on the left is unchanged.
+    assertEquals("keyboard clear on the left is unchanged",
+        100, FloatingKeyboard2.hingeAvoidedX(100, 600, W, hL, hR));
+    // Keyboard clear of the gap on the right is unchanged.
+    assertEquals("keyboard clear on the right is unchanged",
+        1500, FloatingKeyboard2.hingeAvoidedX(1500, 600, W, hL, hR));
+    // A snap result is always within the display bounds.
+    int snapped = FloatingKeyboard2.hingeAvoidedX(1200, 1300, W, hL, hR);
+    assertTrue("snapped x within [0, W-width]", snapped >= 0 && snapped <= W - 1300);
+  }
+
+  @Test
   public void testScalingLogic()
   {
     // Test the core scaling logic without Android dependencies

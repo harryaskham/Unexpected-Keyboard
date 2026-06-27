@@ -994,6 +994,35 @@ public class FloatingKeyboard2 extends InputMethodService
     return size;
   }
 
+  /**
+   * bd-6aacf2: pure hinge-avoidance geometry (unit-tested in FloatingKeyboardTest).
+   * Given an already display-clamped X, the keyboard width, the full spanned width,
+   * and a vertical separating-hinge gap [hingeLeft, hingeRight], returns the X that
+   * keeps a one-side-fitting keyboard out of the gap (snapped to the side its centre
+   * is on, preferring a side it actually fits). A keyboard too wide to fit either
+   * side (an intentional spanning keyboard), or one not overlapping the gap, is
+   * returned unchanged. Side-effect-free + Android-independent for testing.
+   */
+  static int hingeAvoidedX(int clampedX, int keyboardWidth, int screenWidth,
+                           int hingeLeft, int hingeRight) {
+    int kbLeft = clampedX, kbRight = clampedX + keyboardWidth;
+    boolean overlapsGap = kbRight > hingeLeft && kbLeft < hingeRight;
+    boolean fitsLeft = keyboardWidth <= hingeLeft;
+    boolean fitsRight = keyboardWidth <= (screenWidth - hingeRight);
+    if (!overlapsGap || (!fitsLeft && !fitsRight))
+      return clampedX;
+    int center = clampedX + keyboardWidth / 2;
+    int hingeCenter = (hingeLeft + hingeRight) / 2;
+    int snappedX;
+    if (center <= hingeCenter && fitsLeft)
+      snappedX = Math.max(0, hingeLeft - keyboardWidth);
+    else if (fitsRight)
+      snappedX = hingeRight;
+    else
+      snappedX = Math.max(0, hingeLeft - keyboardWidth);
+    return Math.max(0, Math.min(snappedX, screenWidth - keyboardWidth));
+  }
+
   private void clampKeyboardPositionToScreen() {
     if (_floatingLayoutParams == null || _floatingContainer == null) {
       return;
@@ -1028,29 +1057,11 @@ public class FloatingKeyboard2 extends InputMethodService
     if (_foldStateTracker != null) {
       android.graphics.Rect hinge = _foldStateTracker.getSeparatingHingeBounds();
       if (hinge != null && hinge.width() < hinge.height()) { // vertical hinge (left/right)
-        int kbLeft = clampedX, kbRight = clampedX + keyboardWidth;
-        boolean overlapsGap = kbRight > hinge.left && kbLeft < hinge.right;
-        int leftRoom = hinge.left;
-        int rightRoom = screenWidth - hinge.right;
-        boolean fitsLeft = keyboardWidth <= leftRoom;
-        boolean fitsRight = keyboardWidth <= rightRoom;
-        if (overlapsGap && (fitsLeft || fitsRight)) {
-          int center = clampedX + keyboardWidth / 2;
-          int hingeCenter = (hinge.left + hinge.right) / 2;
-          int snappedX;
-          if (center <= hingeCenter && fitsLeft)
-            snappedX = Math.max(0, hinge.left - keyboardWidth);
-          else if (fitsRight)
-            snappedX = hinge.right;
-          else
-            snappedX = Math.max(0, hinge.left - keyboardWidth);
-          clampedX = Math.max(0, Math.min(snappedX, screenWidth - keyboardWidth));
-          Logs.log("FloatingKeyboard2", "hinge avoid: gap=" + hinge.left + ".." + hinge.right
-              + " kb=" + kbLeft + ".." + kbRight + " -> x=" + clampedX);
-        } else {
-          Logs.log("FloatingKeyboard2", "hinge present gap=" + hinge.left + ".." + hinge.right
-              + " kb=" + kbLeft + ".." + kbRight + " (spanning/clear, no snap)");
-        }
+        int before = clampedX;
+        clampedX = hingeAvoidedX(clampedX, keyboardWidth, screenWidth, hinge.left, hinge.right);
+        Logs.log("FloatingKeyboard2", "hinge gap=" + hinge.left + ".." + hinge.right
+            + " kb=" + before + ".." + (before + keyboardWidth)
+            + (clampedX != before ? " -> x=" + clampedX : " (spanning/clear, no snap)"));
       }
     }
 
